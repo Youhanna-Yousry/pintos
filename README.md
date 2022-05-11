@@ -1,5 +1,20 @@
 # Pintos
 
+## Ignored Files
+
+
+In order to ignore the files that contain absolute pahts please follow the following insrtuctions. $PINTOSHOME -> pintos path
+
+```shell
+cd $PINTOSHOME/src/utils
+nano .gitignore
+# then add those 3 files: pintos-gdb, pintos and Pintos.pm
+^O
+^X
+git rm -rf --cached .
+git add .
+```
+
 ## About
 
 PintOS is an open source instructional operating system kernel developed by Stanford University. PintOS provides complete documentation & modular projects to introduce students to the major concepts of operating systems development. The components of PintOS project is illustrated in the following figure.
