@@ -1,4 +1,4 @@
-#include "threads/thread.h"
+#include "../threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -59,6 +59,8 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+real load_avg;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -98,6 +100,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  load_avg->value = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -181,6 +184,14 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
+
+  if (thread_mlfqs) {
+    intr_disable ();
+      t->recent_cpu = thread_current ()->recent_cpu;
+    intr_enable ();
+    t->nice = thread ()->nice;
+    thread_calculate_priority (t);
+  }
   tid = t->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */
@@ -331,6 +342,37 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+bool
+thread_find_greater_priority ()
+{
+  bool greater = false;
+  for(struct list_elem *iter = list_begin (&ready_list);
+        iter != list_end (&ready_list);
+        iter = list_next (&iter))
+        {
+          struct thread *temp = list_entry(iter, struct thread, elem);
+          if (temp->priority > t->priority){    //to be checked
+            greater = true;
+            break;
+          }
+        }
+    return greater;
+}
+
+void
+thread_calculate_priority (struct thread *t)
+{
+  if (thread_mlfqs) {
+    real ans;
+    intr_disable();
+      divide_int(t->recent_cpu, 4, &ans);
+    intr_enable()
+    t->priority = subtract (subtract (convert_to_real(PRI_MAX), &ans, &ans),
+                            t->nice * 2, &ans);
+  }
+}
+
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
@@ -345,35 +387,103 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+void
+update_thread_priority (struct thread *t, void *aux)
+{
+    int *max = (int *) aux;
+    thread_calculate_recent_cpu(t);
+
+    thread_calculate_priority(t);
+
+    if (t->priority > *max) {
+      *max = t->priority;
+    }
+
+}
+
+
+
+
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  struct thread *t = thread_current ();
+
+  t->nice = nice;
+
+  thread_calculate_priority (t);
+
+  if (thread_find_greater_priority ()) thread_yield (); 
+
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current ()->nice;
+}
+
+
+void
+thread_calculate_load_avg (void)
+{
+  real temp2, ready_size, temp1;
+
+  intr_disable ();
+
+    convert_to_real(list_size(&ready_list, &ready_size));
+
+    multiply (divide_int (convert_to_real (59, &temp1), 60, &temp1),
+              load_avg, &temp1);
+
+
+
+    multiply (divide_int (convert_to_real (1, &temp2), 60, &temp2),
+              ready_size, &temp2);
+
+    add (&temp1, &temp2, &load_avg);
+
+    
+  intr_enable ();
+
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  real dummy;
+  return convert_to_int_trunc (multiply_int (&load_avg, 100, &dummy));
+}
+
+
+void
+thread_calculate_recent_cpu (struct thread *t)
+{
+  real ans, temp;
+
+  intr_disable ();
+
+    multiply_int (&load_avg, 2, &ans);
+
+    add (&ans, 1, &temp);
+
+    divide (&ans, &temp, &ans);
+    multiply (&ans, & (t->recent_cpu), & (t->recent_cpu));
+
+    add (& (t->recent_cpu), convert_to_real (t->nice, &ans), & (t->recent_cpu)); 
+
+  intr_enable ();
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  real dummy;
+  return convert_to_int_trunc (multiply_int (& (thread_current ()->recent_cpu) , 100, &dummy));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
