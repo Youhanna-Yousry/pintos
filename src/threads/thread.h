@@ -1,7 +1,9 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
-#define DEBUG_LOAD_AVG true
+#define DEBUG_LOAD_AVG false
+#define DEBUG_RECENT true
+#define DEBUG_PRIORITY false
 #define DEBUG_YIELD false
 
 
@@ -157,5 +159,8 @@ void thread_calculate_recent_cpu (struct thread *t);
 
 int thread_get_load_avg (void);
 void thread_calculate_load_avg (void);
+
+
+bool thread_is_idle(struct thread *t);
 
 #endif /* threads/thread.h */

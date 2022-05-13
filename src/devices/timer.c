@@ -226,29 +226,27 @@ timer_interrupt (struct intr_frame *args UNUSED) //I think we should disable int
   ticks++;
   thread_tick ();
 
-    if(thread_mlfqs) {
-      struct thread *t = thread_current ();
-      if (!strcmp(t->name, "idle")){
-        int old_level = intr_disable ();
-          add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu, &t->recent_cpu);
-        intr_set_level(old_level);
-      }
-      bool update_time = timer_ticks () % TIMER_FREQ == 0;
 
-      if(update_time) {
-        if(DEBUG_LOAD_AVG) printf("<1> load avg = %d\n", thread_get_load_avg());
 
-        thread_calculate_load_avg ();
-        int max = 0;
+  if(thread_mlfqs) {
+    struct thread *t = thread_current ();
+    if (!thread_is_idle(t)){
+      real dummy;
+      enum intr_level old_level = intr_disable ();
+        add(convert_to_real (1, &dummy), &t->recent_cpu, &t->recent_cpu);
+      intr_set_level(old_level);
+    }
+    bool update_time = timer_ticks () % TIMER_FREQ == 0;
 
-        if(DEBUG_LOAD_AVG) printf("<3> load avg = %d\n", thread_get_load_avg());
+    if(timer_ticks () % 4 == 0) {
+      if(DEBUG_LOAD_AVG) printf("<1> load avg = %d\n", thread_get_load_avg());
 
-        thread_foreach (&update_thread_priority, (void *) &max);
+      if (update_time)  thread_calculate_load_avg ();
 
-        // if(max > t->priority){
-        //   thread_yield ();
-        // }
-      }
+      if(DEBUG_LOAD_AVG) printf("<3> load avg = %d\n", thread_get_load_avg());
+
+      thread_foreach (&update_thread_priority, (void *) &(update_time));
+    }
   }
 
   while (!list_empty(&sleeping_threads_list)) { //checking whether any thread(s) need to be unblocked
@@ -264,9 +262,6 @@ timer_interrupt (struct intr_frame *args UNUSED) //I think we should disable int
       break;
     }
   }
-
-
-
 
 }
 

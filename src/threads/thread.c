@@ -75,6 +75,8 @@ static tid_t allocate_tid (void);
 
 void thread_list_loop(struct list *l, void (*func)(struct thread *, void *));
 void thread_print (struct thread *t, void *aux UNUSED);
+bool thread_is_idle(struct thread *t);
+
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -372,10 +374,11 @@ thread_calculate_priority (struct thread *t)
     enum intr_level old_level = intr_disable();
       divide_int(&(t->recent_cpu), 4, &ans);
 
+      real dummy1, dummy2;
+      t->priority = convert_to_int_trunc(subtract (convert_to_real(PRI_MAX, &dummy1),
+                                                    add (&ans, convert_to_real(t->nice * 2, &dummy2), &ans), &ans));
     intr_set_level(old_level);
-    real dummy;
-    t->priority = convert_to_int_trunc(subtract (subtract (convert_to_real(PRI_MAX, &dummy), &ans, &ans),
-                            convert_to_real(t->nice * 2, &dummy), &ans));
+    
   }
 }
 
@@ -401,16 +404,22 @@ thread_get_priority (void)
 void
 update_thread_priority (struct thread *t, void *aux)
 {
-    int *max = (int *) aux;
+    bool *update_recent = (bool *) aux;
 
-    thread_calculate_recent_cpu(t);
 
+
+    if (*update_recent){
+      thread_calculate_recent_cpu(t);
+      
+      if (DEBUG_RECENT) thread_print (t, NULL);
+    }
     thread_calculate_priority(t);
 
 
-    if (t->priority > *max) {
-      *max = t->priority;
-    }
+
+    // if (t->priority > *max) {
+    //   *max = t->priority;
+    // }
 
 }
 
@@ -453,7 +462,7 @@ thread_list_loop(struct list *l, void (*func)(struct thread *, void *))
 void
 thread_print (struct thread *t, void *aux UNUSED)
 {
-  printf ("thread id: %d, name: %s, status: %d, priority: %d\n", t->tid, t->name, t->status, t->priority);
+  printf ("thread id: %d, name: %s, status: %d, priority: %d, nice: %d\n", t->tid, t->name, t->status, t->priority, t->nice);
 }
 
 void
@@ -536,7 +545,7 @@ int
 thread_get_recent_cpu (void) 
 {
   real dummy;
-  return convert_to_int_trunc (multiply_int (& (thread_current ()->recent_cpu) , 100, &dummy));
+  return convert_to_int_round (multiply_int (& (thread_current ()->recent_cpu) , 100, &dummy));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -576,6 +585,12 @@ idle (void *idle_started_ UNUSED)
       asm volatile ("sti; hlt" : : : "memory");
     }
 }
+
+bool
+thread_is_idle(struct thread *t){
+  return t == idle_thread;
+}
+
 
 /* Function used as the basis for a kernel thread. */
 static void
