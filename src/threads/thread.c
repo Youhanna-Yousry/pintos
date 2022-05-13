@@ -73,6 +73,9 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+void thread_list_loop(struct list *l, void (*func)(struct thread *, void *));
+void thread_print (struct thread *t, void *aux UNUSED);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -367,7 +370,6 @@ thread_calculate_priority (struct thread *t)
     real ans;
     int old_level = intr_disable();
       divide_int(&(t->recent_cpu), 4, &ans);
-    if(DEBUG) printf("<3>\n");
 
     intr_set_level(old_level);
     real dummy;
@@ -431,7 +433,9 @@ thread_get_nice (void)
   return thread_current ()->nice;
 }
 
-void thread_list_loop(struct list *l, void (*func)(struct thread *)){
+void
+thread_list_loop(struct list *l, void (*func)(struct thread *, void *))
+{
    for(struct list_elem *iter = list_begin (l);
         iter != list_end (l);
         iter = list_next (iter))
@@ -439,13 +443,14 @@ void thread_list_loop(struct list *l, void (*func)(struct thread *)){
         if (DEBUG) printf ("hello\n");
 
           struct thread *t = list_entry(iter, struct thread, elem);
-          (*func)(t);
+          (*func)(t, NULL);
         }
 }
 
 void
-thread_print (struct thread *t) {
-  printf ("thread id: %d, status: %d, priority: %d\n", t->tid, t->status, t->priority);
+thread_print (struct thread *t, void *aux UNUSED)
+{
+  printf ("thread id: %d, name: %s, status: %d, priority: %d\n", t->tid, t->name, t->status, t->priority);
 }
 
 void
@@ -455,8 +460,10 @@ thread_calculate_load_avg (void)
   int old_level = intr_disable ();
 
     // if(DEBUG) thread_list_loop(&ready_list, &thread_print);
+    if (DEBUG) printf("<2>\n");
 
-    int size = list_size(&ready_list);
+    int size = list_size(&ready_list) + 1;
+    thread_foreach(&thread_print, NULL);
 
     if(DEBUG) printf("ready threads: %d\n", size);
   
@@ -466,16 +473,24 @@ thread_calculate_load_avg (void)
 
     divide_int (convert_to_real (59, &temp1), 60, &temp1);
 
-    // if(DEBUG) printf("59/60: %d\n", temp1.value);
+    if(DEBUG) printf("59/60: %d\n", temp1.value);
 
     multiply (&temp1, &load_avg, &temp1);
+
+    if(DEBUG) printf("59/60 * load avg: %d\n", temp1.value);
+
 
 
 
     multiply (divide_int (convert_to_real (1, &temp2), 60, &temp2),
               &ready_size, &temp2);
 
+    if(DEBUG) printf("1/60 * ready threads: %d\n", temp2.value);
+    
+
     add (&temp1, &temp2, &load_avg);
+
+    // if (DEBUG) printf("load avg * 100= %d", );
 
     
   intr_set_level(old_level);
@@ -635,24 +650,21 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else {
-    if(thread_mlfqs){
+  if(thread_mlfqs){
     struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
-      for(struct list_elem *iter = list_begin (&ready_list);
-        iter != list_end (&ready_list);
-        iter = list_next (iter))
-        {
-          struct thread *temp = list_entry(iter, struct thread, elem);
-          if (temp->priority > next->priority){ 
-            next = temp;
-          }
+    for(struct list_elem *iter = list_begin (&ready_list);
+      iter != list_end (&ready_list);
+      iter = list_next (iter))
+      {
+        struct thread *temp = list_entry(iter, struct thread, elem);
+        if (temp->priority > next->priority){ 
+          next = temp;
         }
-      list_remove(&(next->elem));
-      return next;
-    }
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
-
+      }
+    list_remove(&(next->elem));
+    return next;
   }
+  return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page

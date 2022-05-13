@@ -189,7 +189,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
         thread_calculate_load_avg ();
         int max = 0;
 
-        if(DEBUG) printf("<2> load avg = %d\n", thread_get_load_avg());
+        if(DEBUG) printf("<3> load avg = %d\n", thread_get_load_avg());
 
         thread_foreach (&update_thread_priority, (void *) &max);
 
