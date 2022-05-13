@@ -1,52 +1,87 @@
 #include "fixed-point.h"
 
-int f = 1 << FIXED_POINT;
+real* convert_to_real(int n, real *x);
 
-int convert_to_int_trunc(real *x){
-    return x->value / f;
+int convert_to_int_trunc(real *x);
+int convert_to_int_round(real *x);
+
+real* add(real *op1, real *op2, real *ans);
+real* subtract(real *op1, real *op2, real *ans);
+
+real* multiply(real *op1, real *op2, real *ans);
+real* multiply_int(real *op1, int op2, real *ans);
+
+real* divide(real *op1, real *op2, real *ans);
+real* divide_int(real *op1, int op2, real *ans);
+
+
+/* Truncates a real number.*/
+int 
+convert_to_int_trunc(real *x)
+{
+    return x->value / F;
 }
 
-int convert_to_int_round(real *x){
+/* Rounds a real number to the nearest integer.*/
+int 
+convert_to_int_round(real *x)
+{
     int ans = 0;
     if(x->value >= 0){
-        ans = (x->value + f / 2) / f;
+        ans = (x->value + F / 2) / F;
     }else{
-      ans = (x->value - f / 2) / f;  
+      ans = (x->value - F / 2) / F;  
     }
     return ans;
 }
 
-real* convert_to_real(int n, real *x){
-    x->value = n * f;
+/*Convertes an integer to a real number.*/
+real* 
+convert_to_real(int n, real *x)
+{
+    x->value = n * F;
     return x;
 }
-
-real* add(real *op1, real *op2, real *ans){
+/* Adds two real numbers.*/
+real* 
+add(real *op1, real *op2, real *ans)
+{
     ans->value = op2->value + op1->value;
     return ans;
 }
-
-real* subtract(real *op1, real *op2, real *ans){
+/*Subtractes two real numbers (op1 - op2).*/
+real* 
+subtract(real *op1, real *op2, real *ans)
+{
     ans->value = op1->value - op2->value;
     return ans;
 }
-
-real* multiply(real *op1, real *op2, real *ans){
-    ans->value = ((int64_t)(op1->value) * op2->value) / f;
+/*multuplies two real numbers.*/
+real* 
+multiply(real *op1, real *op2, real *ans)
+{
+    ans->value = ((int64_t)(op1->value) * op2->value) / F;
     return ans;
 }
-real* multiply_int(real *op1, int op2, real *ans){
+/*multiplies a real number by an integer*/
+real*
+multiply_int(real *op1, int op2, real *ans)
+{
     ans->value = op1->value * op2;
     return ans;
 }
-
-real* divide(real *op1, real *op2, real *ans){
-    ans->value = ((int64_t)(op1->value) * f) / op2->value;
+/*Divides two real numbers (op1 / op2 ).*/
+real* 
+divide(real *op1, real *op2, real *ans)
+{
+    ans->value = ((int64_t)(op1->value) * F) / op2->value;
     return ans;
 
 }
-
-real* divide_int(real *op1, int op2, real *ans){
+/*Divides a real number by an integer.*/
+real* 
+divide_int(real *op1, int op2, real *ans)
+{
     ans->value = op1->value / op2;
     return ans;
 }

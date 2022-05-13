@@ -2,7 +2,7 @@
 #define THREADS_THREAD_H
 
 #define DEBUG_LOAD_AVG false
-#define DEBUG_RECENT true
+#define DEBUG_RECENT false
 #define DEBUG_PRIORITY false
 #define DEBUG_YIELD false
 
@@ -149,7 +149,7 @@ void thread_set_priority (int);
 void thread_calculate_priority(struct thread *t);
 bool thread_find_greater_priority (struct thread *t);
 
-void update_thread_priority (struct thread *t, void * aux);
+void thread_update_priority (struct thread *, void *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

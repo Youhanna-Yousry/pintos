@@ -76,6 +76,7 @@ static tid_t allocate_tid (void);
 void thread_list_loop(struct list *l, void (*func)(struct thread *, void *));
 void thread_print (struct thread *t, void *aux UNUSED);
 bool thread_is_idle(struct thread *t);
+void thread_update_priority (struct thread *t, void *aux);
 
 
 /* Initializes the threading system by transforming the code
@@ -349,6 +350,7 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* */
 bool
 thread_find_greater_priority (struct thread *t)
 {
@@ -366,6 +368,7 @@ thread_find_greater_priority (struct thread *t)
     return greater;
 }
 
+/* Calculates for a given thread its priority using bsd formulas*/
 void
 thread_calculate_priority (struct thread *t)
 {
@@ -401,29 +404,19 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/* Updates the priority of a given thread, and its recent_cpu if aux was true*/
 void
-update_thread_priority (struct thread *t, void *aux)
+thread_update_priority (struct thread *t, void *aux)
 {
     bool *update_recent = (bool *) aux;
 
-
-
     if (*update_recent){
       thread_calculate_recent_cpu(t);
-      
       if (DEBUG_RECENT) thread_print (t, NULL);
     }
+
     thread_calculate_priority(t);
-
-
-
-    // if (t->priority > *max) {
-    //   *max = t->priority;
-    // }
-
 }
-
-
 
 
 /* Sets the current thread's nice value to NICE. */
@@ -447,6 +440,7 @@ thread_get_nice (void)
   return thread_current ()->nice;
 }
 
+/* Iterates over a list of threads, applying a given function.*/
 void
 thread_list_loop(struct list *l, void (*func)(struct thread *, void *))
 {
@@ -459,54 +453,38 @@ thread_list_loop(struct list *l, void (*func)(struct thread *, void *))
         }
 }
 
+/* Prints various information about a given thread.*/
 void
 thread_print (struct thread *t, void *aux UNUSED)
 {
   printf ("thread id: %d, name: %s, status: %d, priority: %d, nice: %d\n", t->tid, t->name, t->status, t->priority, t->nice);
 }
 
+/* Calculates the load average of the system, using BSD's formula.*/
 void
 thread_calculate_load_avg (void)
 {
   real temp2, ready_size, temp1;
   enum intr_level old_level = intr_disable ();
 
-    // if(DEBUG) thread_list_loop(&ready_list, &thread_print);
     if (DEBUG_LOAD_AVG) printf("<2>\n");
 
     int size = list_size(&ready_list) + (thread_current () != idle_thread? 1: 0);
-    // if (DEBUG_LOAD_AVG) thread_foreach(&thread_print, NULL);
 
     if(DEBUG_LOAD_AVG) printf("ready threads: %d\n", size);
   
     convert_to_real(size, &ready_size);
 
-    // if(DEBUG) printf("real ready threads: %d\n", ready_size.value);
-
     divide_int (convert_to_real (59, &temp1), 60, &temp1);
 
-    // if(DEBUG) printf("59/60: %d\n", temp1.value);
-
     multiply (&temp1, &load_avg, &temp1);
-
-    // if(DEBUG) printf("59/60 * load avg: %d\n", temp1.value);
-
-
-
 
     multiply (divide_int (convert_to_real (1, &temp2), 60, &temp2),
               &ready_size, &temp2);
 
-    // if(DEBUG) printf("1/60 * ready threads: %d\n", temp2.value);
-    
-
     add (&temp1, &temp2, &load_avg);
-
-    // if (DEBUG) printf("load avg * 100= %d", );
-
     
   intr_set_level(old_level);
-
 
 }
 
@@ -516,11 +494,11 @@ thread_get_load_avg (void)
 {
   real dummy;
   multiply_int (&load_avg, 100, &dummy);
-  // if(DEBUG_LOAD_AVG)  printf("real load_avg= %d\n", load_avg.value);
+  if(DEBUG_LOAD_AVG)  printf("real load_avg= %d\n", load_avg.value);
   return convert_to_int_round(&dummy);
 }
 
-
+/* Calculates recent cpu usage of given thread, using BSD's formula.*/
 void
 thread_calculate_recent_cpu (struct thread *t)
 {
@@ -660,7 +638,7 @@ alloc_frame (struct thread *t, size_t size)
   return t->stack;
 }
 
-/* Chooses and returns the next thread to be scheduled.  Should
+/* Chooses and returns the highest priority thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
    will be in the run queue.)  If the run queue is empty, return
@@ -670,21 +648,18 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  // if(thread_mlfqs){
-    struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
-    for(struct list_elem *iter = list_begin (&ready_list);
-      iter != list_end (&ready_list);
-      iter = list_next (iter))
-      {
-        struct thread *temp = list_entry(iter, struct thread, elem);
-        if (temp->priority > next->priority){ 
-          next = temp;
-        }
+  struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+  for(struct list_elem *iter = list_begin (&ready_list);
+    iter != list_end (&ready_list);
+    iter = list_next (iter))
+    {
+      struct thread *temp = list_entry(iter, struct thread, elem);
+      if (temp->priority > next->priority){ 
+        next = temp;
       }
-    list_remove(&(next->elem));
-    return next;
-  // }
-  // return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    }
+  list_remove(&(next->elem));
+  return next;
 }
 
 /* Completes a thread switch by activating the new thread's page

@@ -245,7 +245,7 @@ timer_interrupt (struct intr_frame *args UNUSED) //I think we should disable int
 
       if(DEBUG_LOAD_AVG) printf("<3> load avg = %d\n", thread_get_load_avg());
 
-      thread_foreach (&update_thread_priority, (void *) &(update_time));
+      thread_foreach (&thread_update_priority, (void *) &(update_time));
     }
   }
 
