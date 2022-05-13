@@ -1,6 +1,9 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
+#define DEBUG true
+
+
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
@@ -140,6 +143,7 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 void thread_calculate_priority(struct thread *t);
+bool thread_find_greater_priority (struct thread *t);
 
 void update_thread_priority (struct thread *t, void * aux);
 
@@ -150,6 +154,6 @@ int thread_get_recent_cpu (void);
 void thread_calculate_recent_cpu (struct thread *t);
 
 int thread_get_load_avg (void);
-void thread_calculate_load_avg (void)
+void thread_calculate_load_avg (void);
 
 #endif /* threads/thread.h */

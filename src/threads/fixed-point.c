@@ -1,15 +1,15 @@
 #include "fixed-point.h"
 
-int convert_to_int_trunc(real x){
-    return x.value/ FIXED_POINT;
+int convert_to_int_trunc(real *x){
+    return x->value/ FIXED_POINT;
 }
 
-int convert_to_int_round(real x){
+int convert_to_int_round(real *x){
     int ans = 0;
-    if(x.value >= 0){
-        ans = (x.value + FIXED_POINT / 2) >> FIXED_POINT;
+    if(x->value >= 0){
+        ans = (x->value + FIXED_POINT / 2) >> FIXED_POINT;
     }else{
-      ans = (x.value - FIXED_POINT / 2) >> FIXED_POINT;  
+      ans = (x->value - FIXED_POINT / 2) >> FIXED_POINT;  
     }
     return ans;
 }

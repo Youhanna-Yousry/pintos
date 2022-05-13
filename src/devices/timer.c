@@ -174,24 +174,25 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
 
   if(thread_mlfqs) {
-      struct thread *t = thread_current ();
-      if (t != idle_thread){
-        intr_disable ();
-          add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu);
-        intr_enable ();
-      }
-      bool update_time = timer_ticks () % TIMER_FREQ == 0;
-      if(update_time) {
-        thread_calculate_load_avg ();
-        int max = 0;
+    if (DEBUG) printf ("hi\n");
+      // struct thread *t = thread_current ();
+      // if (!strcmp(t->name, "idle")){
+      //   intr_disable ();
+      //     add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu, &t->recent_cpu);
+      //   intr_enable ();
+      // }
+      // bool update_time = timer_ticks () % TIMER_FREQ == 0;
+      // if(update_time) {
+      //   thread_calculate_load_avg ();
+      //   int max = 0;
 
-        thread_foreach (&update_thread_priority, (void *) &max);
+      //   thread_foreach (&update_thread_priority, (void *) &max);
 
-        if(max > t->priority){
-          thread_yield ();
-        }
+      //   if(max > t->priority){
+      //     thread_yield ();
+      //   }
 
-      }
+      // }
   }
 
 }

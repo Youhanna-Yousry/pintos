@@ -5,9 +5,9 @@ typedef struct {
     int value;
 } real;
 
-int convert_to_int_trunc(real x);
+int convert_to_int_trunc(real *x);
 
-int convert_to_int_round(real x);
+int convert_to_int_round(real *x);
 
 real* convert_to_real(int n, real *x);
 real* add(real *op1, real *op2, real *ans);

@@ -100,7 +100,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-  load_avg->value = 0;
+  load_avg.value = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -189,7 +189,7 @@ thread_create (const char *name, int priority,
     intr_disable ();
       t->recent_cpu = thread_current ()->recent_cpu;
     intr_enable ();
-    t->nice = thread ()->nice;
+    t->nice = thread_current ()->nice;
     thread_calculate_priority (t);
   }
   tid = t->tid = allocate_tid ();
@@ -314,6 +314,7 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   enum intr_level old_level;
+  // if (DEBUG) printf("thread %d yielding...\n", cur->tid);
   
   ASSERT (!intr_context ());
 
@@ -343,12 +344,12 @@ thread_foreach (thread_action_func *func, void *aux)
 }
 
 bool
-thread_find_greater_priority ()
+thread_find_greater_priority (struct thread *t)
 {
   bool greater = false;
   for(struct list_elem *iter = list_begin (&ready_list);
         iter != list_end (&ready_list);
-        iter = list_next (&iter))
+        iter = list_next (iter))
         {
           struct thread *temp = list_entry(iter, struct thread, elem);
           if (temp->priority > t->priority){    //to be checked
@@ -365,10 +366,11 @@ thread_calculate_priority (struct thread *t)
   if (thread_mlfqs) {
     real ans;
     intr_disable();
-      divide_int(t->recent_cpu, 4, &ans);
-    intr_enable()
-    t->priority = subtract (subtract (convert_to_real(PRI_MAX), &ans, &ans),
-                            t->nice * 2, &ans);
+      divide_int(&(t->recent_cpu), 4, &ans);
+    intr_enable();
+    real dummy;
+    t->priority = convert_to_int_trunc(subtract (subtract (convert_to_real(PRI_MAX, &dummy), &ans, &ans),
+                            convert_to_real(t->nice * 2, &dummy), &ans));
   }
 }
 
@@ -414,7 +416,7 @@ thread_set_nice (int nice)
 
   thread_calculate_priority (t);
 
-  if (thread_find_greater_priority ()) thread_yield (); 
+  if (thread_find_greater_priority (t)) thread_yield (); 
 
 }
 
@@ -433,15 +435,15 @@ thread_calculate_load_avg (void)
 
   intr_disable ();
 
-    convert_to_real(list_size(&ready_list, &ready_size));
+    convert_to_real(list_size(&ready_list), &ready_size);
 
     multiply (divide_int (convert_to_real (59, &temp1), 60, &temp1),
-              load_avg, &temp1);
+              &load_avg, &temp1);
 
 
 
     multiply (divide_int (convert_to_real (1, &temp2), 60, &temp2),
-              ready_size, &temp2);
+              &ready_size, &temp2);
 
     add (&temp1, &temp2, &load_avg);
 
@@ -462,13 +464,13 @@ thread_get_load_avg (void)
 void
 thread_calculate_recent_cpu (struct thread *t)
 {
-  real ans, temp;
+  real ans, temp, dummy;
 
   intr_disable ();
 
     multiply_int (&load_avg, 2, &ans);
 
-    add (&ans, 1, &temp);
+    add (&ans, convert_to_real(1, &dummy), &temp);
 
     divide (&ans, &temp, &ans);
     multiply (&ans, & (t->recent_cpu), & (t->recent_cpu));
@@ -603,20 +605,20 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else {
-    struct thread *t next = list_entry(list_begin(&ready_list), struct thread, elem);
-    bool first = true;
-      for(struct list_elem *iter = list_begin (&ready_list);
-        iter != list_end (&ready_list);
-        iter = list_next (&iter))
-        {
-          struct thread *temp = list_entry(iter, struct thread, elem);
-          if (temp->priority > next->priority){ 
-            next = temp;
-          }
-        }
-      return next;
+    // struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+    //   for(struct list_elem *iter = list_begin (&ready_list);
+    //     iter != list_end (&ready_list);
+    //     iter = list_next (iter))
+    //     {
+    //       struct thread *temp = list_entry(iter, struct thread, elem);
+    //       if (temp->priority > next->priority){ 
+    //         next = temp;
+    //       }
+    //     }
+    //   return next;
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+
   }
-    // return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
