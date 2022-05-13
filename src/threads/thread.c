@@ -200,6 +200,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  if(t->priority > thread_get_priority()) thread_yield ();
 
   return tid;
 }
@@ -335,7 +336,28 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+    struct thread *t = thread_current ();
+    t->priority = new_priority;
+    if(thread_find_greater_priority(t)){
+      thread_yield();
+  }
+}
+
+bool
+thread_find_greater_priority (struct thread *t)
+{
+  bool greater = false;
+  for(struct list_elem *iter = list_begin (&ready_list);
+        iter != list_end (&ready_list);
+        iter = list_next (iter))
+        {
+          struct thread *temp = list_entry(iter, struct thread, elem);
+          if (temp->priority > t->priority){    //to be checked
+            greater = true;
+            break;
+          }
+        }
+    return greater;
 }
 
 /* Returns the current thread's priority. */
@@ -492,8 +514,19 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  
+  struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+  for(struct list_elem *iter = list_begin (&ready_list);
+    iter != list_end (&ready_list);
+    iter = list_next (iter))
+    {
+      struct thread *temp = list_entry(iter, struct thread, elem);
+      if (temp->priority > next->priority){ 
+        next = temp;
+      }
+    }
+  list_remove(&(next->elem));
+  return next;
 }
 
 /* Completes a thread switch by activating the new thread's page
