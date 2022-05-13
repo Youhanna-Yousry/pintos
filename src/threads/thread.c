@@ -365,9 +365,11 @@ thread_calculate_priority (struct thread *t)
 {
   if (thread_mlfqs) {
     real ans;
-    intr_disable();
+    int old_level = intr_disable();
       divide_int(&(t->recent_cpu), 4, &ans);
-    intr_enable();
+    if(DEBUG) printf("<3>\n");
+
+    intr_set_level(old_level);
     real dummy;
     t->priority = convert_to_int_trunc(subtract (subtract (convert_to_real(PRI_MAX, &dummy), &ans, &ans),
                             convert_to_real(t->nice * 2, &dummy), &ans));
@@ -393,9 +395,11 @@ void
 update_thread_priority (struct thread *t, void *aux)
 {
     int *max = (int *) aux;
+
     thread_calculate_recent_cpu(t);
 
     thread_calculate_priority(t);
+
 
     if (t->priority > *max) {
       *max = t->priority;
@@ -427,18 +431,44 @@ thread_get_nice (void)
   return thread_current ()->nice;
 }
 
+void thread_list_loop(struct list *l, void (*func)(struct thread *)){
+   for(struct list_elem *iter = list_begin (l);
+        iter != list_end (l);
+        iter = list_next (iter))
+        {
+        if (DEBUG) printf ("hello\n");
+
+          struct thread *t = list_entry(iter, struct thread, elem);
+          (*func)(t);
+        }
+}
+
+void
+thread_print (struct thread *t) {
+  printf ("thread id: %d, status: %d, priority: %d\n", t->tid, t->status, t->priority);
+}
 
 void
 thread_calculate_load_avg (void)
 {
   real temp2, ready_size, temp1;
+  int old_level = intr_disable ();
 
-  intr_disable ();
+    // if(DEBUG) thread_list_loop(&ready_list, &thread_print);
 
-    convert_to_real(list_size(&ready_list), &ready_size);
+    int size = list_size(&ready_list);
 
-    multiply (divide_int (convert_to_real (59, &temp1), 60, &temp1),
-              &load_avg, &temp1);
+    if(DEBUG) printf("ready threads: %d\n", size);
+  
+    convert_to_real(size, &ready_size);
+
+    if(DEBUG) printf("real ready threads: %d\n", ready_size.value);
+
+    divide_int (convert_to_real (59, &temp1), 60, &temp1);
+
+    // if(DEBUG) printf("59/60: %d\n", temp1.value);
+
+    multiply (&temp1, &load_avg, &temp1);
 
 
 
@@ -448,7 +478,8 @@ thread_calculate_load_avg (void)
     add (&temp1, &temp2, &load_avg);
 
     
-  intr_enable ();
+  intr_set_level(old_level);
+
 
 }
 
@@ -466,7 +497,7 @@ thread_calculate_recent_cpu (struct thread *t)
 {
   real ans, temp, dummy;
 
-  intr_disable ();
+  int old_level = intr_disable ();
 
     multiply_int (&load_avg, 2, &ans);
 
@@ -477,7 +508,7 @@ thread_calculate_recent_cpu (struct thread *t)
 
     add (& (t->recent_cpu), convert_to_real (t->nice, &ans), & (t->recent_cpu)); 
 
-  intr_enable ();
+  intr_set_level(old_level);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -605,17 +636,20 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else {
-    // struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
-    //   for(struct list_elem *iter = list_begin (&ready_list);
-    //     iter != list_end (&ready_list);
-    //     iter = list_next (iter))
-    //     {
-    //       struct thread *temp = list_entry(iter, struct thread, elem);
-    //       if (temp->priority > next->priority){ 
-    //         next = temp;
-    //       }
-    //     }
-    //   return next;
+    if(thread_mlfqs){
+    struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+      for(struct list_elem *iter = list_begin (&ready_list);
+        iter != list_end (&ready_list);
+        iter = list_next (iter))
+        {
+          struct thread *temp = list_entry(iter, struct thread, elem);
+          if (temp->priority > next->priority){ 
+            next = temp;
+          }
+        }
+      list_remove(&(next->elem));
+      return next;
+    }
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
 
   }

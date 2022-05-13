@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "../threads/thread.h"
+
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -174,25 +175,28 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
 
   if(thread_mlfqs) {
-    if (DEBUG) printf ("hi\n");
-      // struct thread *t = thread_current ();
-      // if (!strcmp(t->name, "idle")){
-      //   intr_disable ();
-      //     add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu, &t->recent_cpu);
-      //   intr_enable ();
-      // }
-      // bool update_time = timer_ticks () % TIMER_FREQ == 0;
-      // if(update_time) {
-      //   thread_calculate_load_avg ();
-      //   int max = 0;
+      struct thread *t = thread_current ();
+      if (!strcmp(t->name, "idle")){
+        int old_level = intr_disable ();
+          add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu, &t->recent_cpu);
+        intr_set_level(old_level);
+      }
+      bool update_time = timer_ticks () % TIMER_FREQ == 0;
 
-      //   thread_foreach (&update_thread_priority, (void *) &max);
+      if(update_time) {
+        if(DEBUG) printf("<1> load avg = %d\n", thread_get_load_avg());
 
-      //   if(max > t->priority){
-      //     thread_yield ();
-      //   }
+        thread_calculate_load_avg ();
+        int max = 0;
 
-      // }
+        if(DEBUG) printf("<2> load avg = %d\n", thread_get_load_avg());
+
+        thread_foreach (&update_thread_priority, (void *) &max);
+
+        if(max > t->priority){
+          thread_yield ();
+        }
+      }
   }
 
 }
