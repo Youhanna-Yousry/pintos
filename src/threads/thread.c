@@ -343,6 +343,13 @@ thread_set_priority (int new_priority)
   }
 }
 
+void
+thread_check_priority(void){
+  struct thread *t = thread_current ();
+  if(thread_find_greater_priority(t))
+      thread_yield();
+}
+
 bool
 thread_find_greater_priority (struct thread *t)
 {
@@ -610,6 +617,17 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+void
+print_threads(struct list* l)
+{
+  for(struct list_elem* iter = list_begin(&l);
+    iter != list_end(&l);
+    iter = list_next(iter))
+    {
+    struct thread* t = list_entry(iter, struct thread, elem);
+    printf("\tid=%2d, name=%10s, priority=%2d, status:%d\n", t->tid, t->name ,t->priority, t->status);
+    }
 }
 
 /* Offset of `stack' member within `struct thread'.

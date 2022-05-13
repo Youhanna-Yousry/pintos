@@ -140,4 +140,8 @@ int thread_get_load_avg (void);
 
 bool thread_find_greater_priority (struct thread *t);
 
+void thread_check_priority(void);
+
+void print_threads(struct list* l);
+
 #endif /* threads/thread.h */
