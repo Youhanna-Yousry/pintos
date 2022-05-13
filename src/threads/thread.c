@@ -465,10 +465,10 @@ thread_calculate_load_avg (void)
     // if(DEBUG) thread_list_loop(&ready_list, &thread_print);
     if (DEBUG_LOAD_AVG) printf("<2>\n");
 
-    int size = list_size(&ready_list) + 1;
-    if (DEBUG_LOAD_AVG) thread_foreach(&thread_print, NULL);
+    int size = list_size(&ready_list) + (thread_current () != idle_thread? 1: 0);
+    // if (DEBUG_LOAD_AVG) thread_foreach(&thread_print, NULL);
 
-    // if(DEBUG) printf("ready threads: %d\n", size);
+    if(DEBUG_LOAD_AVG) printf("ready threads: %d\n", size);
   
     convert_to_real(size, &ready_size);
 
@@ -506,7 +506,9 @@ int
 thread_get_load_avg (void) 
 {
   real dummy;
-  return convert_to_int_trunc (multiply_int (&load_avg, 100, &dummy));
+  multiply_int (&load_avg, 100, &dummy);
+  // if(DEBUG_LOAD_AVG)  printf("real load_avg= %d\n", load_avg.value);
+  return convert_to_int_round(&dummy);
 }
 
 

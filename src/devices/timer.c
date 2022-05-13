@@ -7,8 +7,8 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "../threads/thread.h"
-
-  
+#include "threads/malloc.h"
+#include <list.h>
 /* See [8254] for hardware details of the 8254 timer chip. */
 
 #if TIMER_FREQ < 19
@@ -21,6 +21,16 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+static struct list sleeping_threads_list;  /* list containing all sleeping threads */
+static struct list garbage_threads_list;   /* list containing all poped threads from sleeping_threads_list */
+
+static struct sleeping_thread {
+  struct list_elem elem;
+  struct thread* thread;
+  int64_t wakeup_ticks;
+};
+
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -30,6 +40,8 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static void thread_sleep(int64_t ticks);
+static void free_garbage_list (void); 
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -38,6 +50,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init (&sleeping_threads_list);
+  list_init (&garbage_threads_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -85,16 +99,53 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-/* Sleeps for approximately TICKS timer ticks.  Interrupts must
+static bool 
+wakeup_ticks_cmp (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  struct sleeping_thread* t1 = list_entry(a, struct sleeping_thread, elem);
+  struct sleeping_thread* t2 = list_entry(b, struct sleeping_thread, elem);
+  return t1->wakeup_ticks < t2->wakeup_ticks;
+}
+
+/* Sleeps for approximately TICKS timer ticks. Interrupts must
    be turned on. */
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  int64_t start = timer_ticks ();     //is it really needed ??
 
   ASSERT (intr_get_level () == INTR_ON);
+  /* ====OLD CODE==== (busy waiting) 
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
+  */ 
+
+  /* ====NEW CODE==== (no busy waiting) */ 
+  if (timer_elapsed(start) < ticks) {
+    thread_sleep(ticks);
+    free_garbage_list();
+  }
+}
+
+/* Adds the sleeping thread to sleeping_threads_list and blocking it */ 
+static void
+thread_sleep (int64_t ticks) {
+  intr_disable ();
+  struct sleeping_thread* sleepy_thread = malloc (sizeof(struct sleeping_thread));
+  sleepy_thread->thread = thread_current ();
+  sleepy_thread->wakeup_ticks = ticks + timer_ticks ();
+  list_insert_ordered (&sleeping_threads_list, &(sleepy_thread->elem), &wakeup_ticks_cmp, NULL);
+  thread_block ();
+  intr_enable ();
+}
+
+/* Deallocates memory used for sleeping_thread */
+static void
+free_garbage_list (void) {
+  while(!list_empty(&garbage_threads_list)) {
+    struct list_elem* itr = list_pop_front(&garbage_threads_list);
+    struct sleeping_thread* garbage_thread = list_entry(itr, struct sleeping_thread, elem);
+    free(garbage_thread);
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -169,12 +220,13 @@ timer_print_stats (void)
 
 /* Timer interrupt handler. */
 static void
-timer_interrupt (struct intr_frame *args UNUSED)
-{
+timer_interrupt (struct intr_frame *args UNUSED) //I think we should disable interrupts but
+                                                 //thread_unblock disable it !!! :(
+{ 
   ticks++;
   thread_tick ();
 
-  if(thread_mlfqs) {
+    if(thread_mlfqs) {
       struct thread *t = thread_current ();
       if (!strcmp(t->name, "idle")){
         int old_level = intr_disable ();
@@ -198,6 +250,23 @@ timer_interrupt (struct intr_frame *args UNUSED)
         // }
       }
   }
+
+  while (!list_empty(&sleeping_threads_list)) { //checking whether any thread(s) need to be unblocked
+    struct list_elem* itr = list_pop_front (&sleeping_threads_list);
+    struct sleeping_thread* head_thread = list_entry(itr, struct sleeping_thread, elem);
+
+    if (head_thread->wakeup_ticks <= timer_ticks()) { //comparing the head thread tick time with the current tick time
+      thread_unblock (head_thread->thread);      
+      list_push_front(&garbage_threads_list, itr);   //preventing memeroy leak by adding garbage values to 
+                                                 //a separate list that will be deallocated later
+    } else { //no unblocking needed
+      list_push_front (&sleeping_threads_list, itr);
+      break;
+    }
+  }
+
+
+
 
 }
 

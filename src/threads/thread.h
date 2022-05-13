@@ -1,8 +1,8 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
-#define DEBUG_LOAD_AVG false
-#define DEBUG_YIELD true
+#define DEBUG_LOAD_AVG true
+#define DEBUG_YIELD false
 
 
 
