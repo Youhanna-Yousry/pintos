@@ -602,8 +602,21 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else {
+    struct thread *t next = list_entry(list_begin(&ready_list), struct thread, elem);
+    bool first = true;
+      for(struct list_elem *iter = list_begin (&ready_list);
+        iter != list_end (&ready_list);
+        iter = list_next (&iter))
+        {
+          struct thread *temp = list_entry(iter, struct thread, elem);
+          if (temp->priority > next->priority){ 
+            next = temp;
+          }
+        }
+      return next;
+  }
+    // return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page

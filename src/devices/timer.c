@@ -175,7 +175,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   if(thread_mlfqs) {
       struct thread *t = thread_current ();
-      if (!strcmp(t->name, "idle")){
+      if (t != idle_thread){
         intr_disable ();
           add(convert_to_real (1, &t->recent_cpu), &t->recent_cpu);
         intr_enable ();
