@@ -1,7 +1,9 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
-#define DEBUG true
+#define DEBUG_LOAD_AVG false
+#define DEBUG_YIELD true
+
 
 
 #include <debug.h>

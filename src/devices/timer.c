@@ -184,18 +184,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
       bool update_time = timer_ticks () % TIMER_FREQ == 0;
 
       if(update_time) {
-        if(DEBUG) printf("<1> load avg = %d\n", thread_get_load_avg());
+        if(DEBUG_LOAD_AVG) printf("<1> load avg = %d\n", thread_get_load_avg());
 
         thread_calculate_load_avg ();
         int max = 0;
 
-        if(DEBUG) printf("<3> load avg = %d\n", thread_get_load_avg());
+        if(DEBUG_LOAD_AVG) printf("<3> load avg = %d\n", thread_get_load_avg());
 
         thread_foreach (&update_thread_priority, (void *) &max);
 
-        if(max > t->priority){
-          thread_yield ();
-        }
+        // if(max > t->priority){
+        //   thread_yield ();
+        // }
       }
   }
 
