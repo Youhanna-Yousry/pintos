@@ -202,12 +202,34 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
   /* Yield (resechdule) if new thread has higher priority */
-  enum intr_level old_level = intr_disable();
-  //if(t->priority > running_thread()->priority)
-    thread_yield();
-  intr_set_level(old_level);
+  //enum intr_level old_level = intr_disable();
+  // if(t->priority > running_thread()->priority)
+  //   thread_yield();
+  //intr_set_level(old_level);
+
+  check_higher_ready();
 
   return tid;
+}
+
+static void
+check_higher_ready(void){
+  if(list_empty(&ready_list))
+    return;
+  int max = PRI_MIN;
+  struct thread * most_priority = malloc(sizeof(struct thread));
+  for(struct list_elem* iter = list_begin(&ready_list);
+    iter != list_end(&ready_list);
+    iter = list_next(iter))
+    {
+      struct thread* t = list_entry(iter, struct thread, elem);
+      if(t->priority > max){
+        max = t->priority;
+        most_priority = t;
+      }
+    }
+  if(most_priority->priority > thread_current()->priority)
+    thread_yield();
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -345,10 +367,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  enum intr_level old_level = intr_disable();
+  // enum intr_level old_level = intr_disable();
   thread_current ()->priority = new_priority;
   if(DEBUG) printf("thread %d new priority %d\n", thread_tid(), new_priority);
-  thread_yield();
+  check_higher_ready();
   
 }
 
@@ -520,6 +542,7 @@ next_thread_to_run (void)
           most_priority = t;
         }
       }
+      list_remove(&most_priority->elem);
       return most_priority;
   }
     // return list_entry (list_pop_front (&ready_list), struct thread, elem);
@@ -581,7 +604,7 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
-  if(DEBUG) printf("inside schedule\n");
+  //if(DEBUG) printf("inside schedule\n");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
