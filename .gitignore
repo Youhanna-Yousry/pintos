@@ -1,3 +1,6 @@
 .vscode/settings.json
 
 
+.idea/misc.xml
+.idea/vcs.xml
+src/.vscode/settings.json

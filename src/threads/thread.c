@@ -20,6 +20,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+#define DEBUG true
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -197,9 +198,14 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-
+  if(DEBUG) printf("creating thread %d, with name \"%s\", priority %d\n", t->tid, name, priority);
   /* Add to run queue. */
   thread_unblock (t);
+  /* Yield (resechdule) if new thread has higher priority */
+  enum intr_level old_level = intr_disable();
+  //if(t->priority > running_thread()->priority)
+    thread_yield();
+  intr_set_level(old_level);
 
   return tid;
 }
@@ -234,12 +240,13 @@ thread_unblock (struct thread *t)
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
-
+  if(DEBUG) printf("unblocking thread %d\n", t->tid);
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+  if(DEBUG) printf("exiting unblock\n");
 }
 
 /* Returns the name of the running thread. */
@@ -301,15 +308,18 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
+  if(DEBUG) printf("inside yield\n");
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
+  if(DEBUG) printf("yielding....\n");
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
+  if(DEBUG) printf("after if\n");
   cur->status = THREAD_READY;
+  if(DEBUG) printf("after cur->status = THREAD_READY;\n");
   schedule ();
   intr_set_level (old_level);
 }
@@ -335,13 +345,18 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  enum intr_level old_level = intr_disable();
   thread_current ()->priority = new_priority;
+  if(DEBUG) printf("thread %d new priority %d\n", thread_tid(), new_priority);
+  thread_yield();
+  
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
+  if(DEBUG) printf("getting thread priority\n");
   return thread_current ()->priority;
 }
 
@@ -492,8 +507,22 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else{
+    int max = PRI_MIN;
+    struct thread * most_priority = malloc(sizeof(struct thread));
+    for(struct list_elem* iter = list_begin(&ready_list);
+      iter != list_end(&ready_list);
+      iter = list_next(iter))
+      {
+        struct thread* t = list_entry(iter, struct thread, elem);
+        if(t->priority > max){
+          max = t->priority;
+          most_priority = t;
+        }
+      }
+      return most_priority;
+  }
+    // return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -552,6 +581,7 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
+  if(DEBUG) printf("inside schedule\n");
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
@@ -577,6 +607,18 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+
+void
+print_ready_threads(void)
+{
+  for(struct list_elem* iter = list_begin(&ready_list);
+    iter != list_end(&ready_list);
+    iter = list_next(iter))
+    {
+    struct thread* t = list_entry(iter, struct thread, elem);
+    printf("\tid=%2d, name=%10s, priority=%2d, status:%d\n", t->tid, t->name ,t->priority, t->status);
+    }
 }
 
 /* Offset of `stack' member within `struct thread'.
