@@ -337,7 +337,11 @@ void
 thread_set_priority (int new_priority) 
 {
     struct thread *t = thread_current ();
-    t->priority = new_priority;
+
+    /* Priority donation implementation */
+    t->original_priority = new_priority;
+    thread_update_priority(t);
+
     if(thread_find_greater_priority(t)){
       thread_yield();
   }
@@ -372,6 +376,28 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
+}
+
+void
+thread_update_priority(struct thread * t)
+{
+  /* Compare original priority with maximum lock priority */
+  t->priority = t->original_priority;
+  if(!list_empty(&t->locks)){
+    int max = 0;
+    for(struct list_elem *iter = list_begin (&t->locks);
+        iter != list_end (&t->locks);
+        iter = list_next (iter))
+        {
+          struct lock *temp = list_entry(iter, struct lock, elem);
+          if (temp->priority > max){    //to be checked
+            max = temp->priority;
+          }
+        }
+        if(max > t->priority)
+          t->priority = max;
+  }
+
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -493,6 +519,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  /* Priority donation implementation */
+  t->wait = NULL;
+  list_init (&t->locks);
+  t->original_priority = priority;
+
+  /* Doesn't relate to priorty donation */
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -621,8 +653,8 @@ allocate_tid (void)
 void
 print_threads(struct list* l)
 {
-  for(struct list_elem* iter = list_begin(&l);
-    iter != list_end(&l);
+  for(struct list_elem* iter = list_begin(l);
+    iter != list_end(l);
     iter = list_next(iter))
     {
     struct thread* t = list_entry(iter, struct thread, elem);

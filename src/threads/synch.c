@@ -209,6 +209,9 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+
+  /* Priority donation implementation */
+  lock->priority = 0;
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -226,8 +229,32 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* Priority donation implementation */
+  struct thread * t = thread_current();
+  if(lock->holder != NULL){ //some thread acquired the lock already
+    t->wait = lock;
+    struct lock * tmp = lock;
+    /* Multiple donations */
+    for(int i = 0; i < 8; i++){
+      if(tmp == NULL)
+        break;
+      tmp->priority = t->priority;
+      thread_update_priority(tmp->holder);
+      tmp = tmp->holder->wait;
+    }
+  }
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  /* Now lock is acquired */
+  t->wait = NULL;
+  lock->priority = t->priority;
+  list_push_back(&t->locks, &lock->elem);
+  if(lock->priority > t->priority){
+    t->priority = lock->priority;
+    thread_yield();
+  }
+
+  /* Doesn't relate to priority donation */
+  lock->holder = t;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -261,6 +288,12 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  /* Priority donation implementation */
+  struct thread * t = thread_current();
+  list_remove(&lock->elem);
+  thread_update_priority(t);
+  
+  /* Doesn't relate to priorty donation */
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }

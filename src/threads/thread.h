@@ -92,7 +92,11 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+   
+   /* Priority donation implementation */
+    int original_priority;
+    struct lock *wait;                 /* Lock which thread waits for */
+    struct list locks;                 /* List of owned locks */
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -141,6 +145,7 @@ int thread_get_load_avg (void);
 bool thread_find_greater_priority (struct thread *t);
 
 void thread_check_priority(void);
+void thread_update_priority(struct thread * t);
 
 void print_threads(struct list* l);
 
