@@ -129,13 +129,13 @@ timer_sleep (int64_t ticks)
 /* Adds the sleeping thread to sleeping_threads_list and blocking it */ 
 static void
 thread_sleep (int64_t ticks) {
-  intr_disable ();
+  enum intr_level old_level = intr_disable();
   struct sleeping_thread* sleepy_thread = malloc (sizeof(struct sleeping_thread));
   sleepy_thread->thread = thread_current ();
   sleepy_thread->wakeup_ticks = ticks + timer_ticks ();
   list_insert_ordered (&sleeping_threads_list, &(sleepy_thread->elem), &wakeup_ticks_cmp, NULL);
   thread_block ();
-  intr_enable ();
+  intr_set_level(old_level);
 }
 
 /* Deallocates memory used for sleeping_thread */

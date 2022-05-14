@@ -3,3 +3,8 @@
 .gitignore
 
 
+src/.vscode/settings.json
+.idea/workspace.xml
+.gitignore
+.idea/misc.xml
+.idea/vcs.xml
