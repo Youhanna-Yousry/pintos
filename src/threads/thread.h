@@ -106,6 +106,11 @@ struct thread
     int nice;
     real recent_cpu;
 
+   
+   /* Priority donation implementation */
+    int original_priority;
+    struct lock *wait;                 /* Lock which thread waits for */
+    struct list locks;                 /* List of owned locks */
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -149,7 +154,7 @@ void thread_set_priority (int);
 void thread_calculate_priority(struct thread *t);
 bool thread_find_greater_priority (struct thread *t);
 
-void thread_update_priority (struct thread *, void *);
+void thread_update_priority_mlfqs (struct thread *, void *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
@@ -162,5 +167,12 @@ void thread_calculate_load_avg (void);
 
 
 bool thread_is_idle(struct thread *t);
+
+bool thread_find_greater_priority (struct thread *t);
+
+void thread_check_priority(void);
+void thread_update_priority(struct thread * t);
+
+void print_threads(struct list* l);
 
 #endif /* threads/thread.h */

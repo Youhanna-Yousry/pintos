@@ -76,7 +76,7 @@ static tid_t allocate_tid (void);
 void thread_list_loop(struct list *l, void (*func)(struct thread *, void *));
 void thread_print (struct thread *t, void *aux UNUSED);
 bool thread_is_idle(struct thread *t);
-void thread_update_priority (struct thread *t, void *aux);
+void thread_update_priority_mlfqs (struct thread *t, void *aux);
 
 
 /* Initializes the threading system by transforming the code
@@ -350,7 +350,7 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
-/* */
+/* Finds wether a ready thread has a higher priority than the given thread.*/
 bool
 thread_find_greater_priority (struct thread *t)
 {
@@ -390,12 +390,40 @@ thread_calculate_priority (struct thread *t)
 void
 thread_set_priority (int new_priority) 
 {
-  struct thread *t = thread_current ();
-  t->priority = new_priority;
-  if(thread_find_greater_priority(t)){
-    thread_yield();
+    struct thread *t = thread_current ();
+
+    /* Priority donation implementation */
+    t->original_priority = new_priority;
+    thread_update_priority(t);
+
+    if(thread_find_greater_priority(t)){
+      thread_yield();
   }
 }
+
+void
+thread_check_priority(void){
+  struct thread *t = thread_current ();
+  if(thread_find_greater_priority(t))
+      thread_yield();
+}
+
+// bool
+// thread_find_greater_priority (struct thread *t)
+// {
+//   bool greater = false;
+//   for(struct list_elem *iter = list_begin (&ready_list);
+//         iter != list_end (&ready_list);
+//         iter = list_next (iter))
+//         {
+//           struct thread *temp = list_entry(iter, struct thread, elem);
+//           if (temp->priority > t->priority){    //to be checked
+//             greater = true;
+//             break;
+//           }
+//         }
+//     return greater;
+// }
 
 /* Returns the current thread's priority. */
 int
@@ -406,7 +434,7 @@ thread_get_priority (void)
 
 /* Updates the priority of a given thread, and its recent_cpu if aux was true*/
 void
-thread_update_priority (struct thread *t, void *aux)
+thread_update_priority_mlfqs (struct thread *t, void *aux)
 {
     bool *update_recent = (bool *) aux;
 
@@ -418,6 +446,28 @@ thread_update_priority (struct thread *t, void *aux)
     thread_calculate_priority(t);
 }
 
+
+void
+thread_update_priority(struct thread * t)
+{
+  /* Compare original priority with maximum lock priority */
+  t->priority = t->original_priority;
+  if(!list_empty(&t->locks)){
+    int max = 0;
+    for(struct list_elem *iter = list_begin (&t->locks);
+        iter != list_end (&t->locks);
+        iter = list_next (iter))
+        {
+          struct lock *temp = list_entry(iter, struct lock, elem);
+          if (temp->priority > max){    //to be checked
+            max = temp->priority;
+          }
+        }
+        if(max > t->priority)
+          t->priority = max;
+  }
+
+}
 
 /* Sets the current thread's nice value to NICE. */
 void
@@ -620,6 +670,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  /* Priority donation implementation */
+  t->wait = NULL;
+  list_init (&t->locks);
+  t->original_priority = priority;
+
+  /* Doesn't relate to priorty donation */
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -648,6 +704,7 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
+
   struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
   for(struct list_elem *iter = list_begin (&ready_list);
     iter != list_end (&ready_list);
@@ -743,6 +800,17 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+void
+print_threads(struct list* l)
+{
+  for(struct list_elem* iter = list_begin(l);
+    iter != list_end(l);
+    iter = list_next(iter))
+    {
+    struct thread* t = list_entry(iter, struct thread, elem);
+    printf("\tid=%2d, name=%10s, priority=%2d, status:%d\n", t->tid, t->name ,t->priority, t->status);
+    }
 }
 
 /* Offset of `stack' member within `struct thread'.
