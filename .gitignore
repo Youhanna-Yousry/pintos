@@ -1,9 +1,5 @@
-src/.vscode/settings.json
-.vscode/settings.json
+#vscode ignored files
 .vscode/*
 
-.idea/workspace.xml
-.idea/vcs.xml
-.idea/misc.xml
-
-.gitignore
+#clion ignored files
+.idea/*
