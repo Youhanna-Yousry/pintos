@@ -22,7 +22,7 @@ static int64_t ticks;
 
 static struct list sleeping_threads_list;  /* list containing all sleeping threads */
 
-static struct sleeping_thread {
+struct sleeping_thread {
   struct list_elem elem;
   struct thread* thread;
   int64_t wakeup_ticks;
@@ -202,6 +202,8 @@ timer_print_stats (void)
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) { 
+  enum intr_level old_level = intr_disable ();
+
   ticks++;
   thread_tick ();
   
@@ -237,6 +239,8 @@ timer_interrupt (struct intr_frame *args UNUSED) {
       break;
     }
   }
+
+  intr_set_level(old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
