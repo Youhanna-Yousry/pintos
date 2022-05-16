@@ -8,9 +8,10 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Mohamed Magdi <imohmaedpro@icloud.com>
+Karim Alaa <karimalaa1912@gmail.com>
+Youhanna Yousry <youhanna.yousry.2580@gmail.com>
+Youssef Magdi <youssefmagdi1210@gmail.com>
 
 ---- PRELIMINARIES ----
 
@@ -30,26 +31,64 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct sleeping_thread {
+  struct list_elem elem;
+  struct thread* thread;
+  int64_t wakeup_ticks;
+};
+A list entry added to sleeping_threads_list that contains mainly a pointer to the sleeping
+thread and its wake up ticks.
+
+static struct list sleeping_threads_list;
+A list containing all the sleeping threads at a certain time.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+First we check whether the ticks (passed as paramter) is greater than 
+the time elapsed since the start of the function, if yes interrupts are
+disabled and the current thread is added with its corresponding wake-up
+ticks to a sleeping threads list. Finally, it is blocked.
+Interrupt handler checks wheter there is any threads ready to wake-up
+by comparing its wake-up ticks with the current tick.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+The sleeping threads list is ordered in incremental order of wake-up ticks
+so each time the interrupt handler is called, we check wether the first 
+thread wake-up time is less than or equal the current ticks. If yes, this
+thread is unblocked and we check the next thread also and so on.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+Since interrupts (external interrupts) are disabled, race conditions
+shall not take place.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+Timer interrupts cannot occur since external interrupts are disabled 
+just before adding the thread to the list and blocking it.
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We chose this design to reduce memory consumption; rather than adding 
+64 bits integer to all threads, we created a separate struct (defined in 
+timer.c file since it's not needed elsewhere) that adds the wake up ticks
+to the sleeping thread.
+Additionally, we found out that there is no need to allocate a memory place for
+this struct in the heap and deallocate it later; when the thread is blocked
+the function timer_sleep doesn't return until this thread wake up again.
+Therefore, the struct never left the stack  all that time.
 
              PRIORITY SCHEDULING
              ===================
