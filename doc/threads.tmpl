@@ -201,6 +201,21 @@ thread of the lock and a list element for list locks in struct thread.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+A "real" uses the 32 bits representation of an int to represent 
+a fixed point number.
+
+typedef struct {
+    int value;
+} real;
+
+Added to struct thread:
+    /* Advanced Scheduler */
+    int nice;                           /* How likely the thread will give up the cpu.*/
+    real recent_cpu;                    /*estimate of recent cpu usage by the thread.*/
+
+Added Global variable:
+    real load_avg;                      /*estimate of the average load on the cpu.*/
+
 ---- ALGORITHMS ----
 
 >> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
@@ -211,23 +226,39 @@ thread of the lock and a list element for list locks in struct thread.
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
+ 0      0   0   0   63  61  59     A
+ 4      1   0   0   62  61  59     A
+ 8      5   0   0   61  61  59     B
+12      8   1   0   61  60  59     A
+16      9   4   0   60  60  59     B 
+20     12   5   0   60  59  59     A
+24     13   8   0   59  59  59     C  
+28     16   8   1   59  58  58     B
+32     16   9   4   59  58  58     A
+36     17  12   4   58  58  58     C
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behavior of your scheduler?
 
+When there is a tie in the priorities of two threads, choosing which thread
+to run was no specified. So a FIFO policy was used in such case.
+This does indeed match the behavior of our scheduler; when iterating over
+the ready_list to pick the thread with highest priority, we use the condition
+greater than (>) to update the maximum value, which leeds that the first thread
+in the list which has the highest priority is the one served.
+
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+
+Only the calculations of load_avg, recent_cpu and priorities are done 
+inside the interrupt, which are a constant amount of computation.
+Since the recent_cpu and priority has to be calculated for every thread,
+only one loop was used, although they don't get updated always at the same tick.
+A boolean value was used to update recent_cpu along with the priority
+when the update conditions coincide.
+
+
 
 ---- RATIONALE ----
 
@@ -236,12 +267,36 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
 
+One downside of our implementation, it uses only a single queue 
+for scheduling, and the Scheduler has to iterate over the list 
+to find the thread with highest priority. We impleneted it that way,
+because it was simple to implement and didn't impact the performance
+drastically.
+Inserting in the ready_list in an ordered way, is not a good solution
+too, since priorities change over time, to we will have to sort the list
+frequently.
+64 queues seemed too much.
+We think that a better approach would be 8~12 queues, each queue 
+holds threads having priority in a certain range. This implementation
+gets the best of the two worlds.
+
+
 >> C6: The assignment explains arithmetic for fixed-point math in
 >> detail, but it leaves it open to you to implement it.  Why did you
 >> decide to implement it the way you did?  If you created an
 >> abstraction layer for fixed-point math, that is, an abstract data
 >> type and/or a set of functions or macros to manipulate fixed-point
 >> numbers, why did you do so?  If not, why not?
+
+Implementing fixed point using 32 bits int was a simple yet an effective
+way, it uses bit shifitng, and the arithmetic operations were not hard
+to figure out and verify.
+We did create an abstraction level for 2 main reasons:
+1-Encapsulation: hiding the details of the implementation and providing 
+an abstraction layer decouples the fixed point implementation from 
+the OS code, making it easier for any future changes or adjustments.
+2-Bug fixing: writing the code in one place makes it easier for bugs
+detection and fixing.  
 
                SURVEY QUESTIONS
                ================

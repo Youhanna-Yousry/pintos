@@ -103,8 +103,8 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     /* Advanced Scheduler */
-    int nice;
-    real recent_cpu;
+    int nice;                           /* How likely the thread will give up the cpu.*/
+    real recent_cpu;                   /*estimate of recent cpu usage by the thread.*/
 
    
    /* Priority donation implementation */
