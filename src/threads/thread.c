@@ -59,7 +59,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
-real load_avg;
+real load_avg;                  /*estimate of the average load on the cpu.*/
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -393,8 +393,10 @@ thread_set_priority (int new_priority)
     struct thread *t = thread_current ();
 
     /* Priority donation implementation */
+    enum intr_level old_level = intr_disable();
     t->original_priority = new_priority;
     thread_update_priority(t);
+    intr_set_level(old_level);
 
     if(thread_find_greater_priority(t)){
       thread_yield();
@@ -407,23 +409,6 @@ thread_check_priority(void){
   if(thread_find_greater_priority(t))
       thread_yield();
 }
-
-// bool
-// thread_find_greater_priority (struct thread *t)
-// {
-//   bool greater = false;
-//   for(struct list_elem *iter = list_begin (&ready_list);
-//         iter != list_end (&ready_list);
-//         iter = list_next (iter))
-//         {
-//           struct thread *temp = list_entry(iter, struct thread, elem);
-//           if (temp->priority > t->priority){    //to be checked
-//             greater = true;
-//             break;
-//           }
-//         }
-//     return greater;
-// }
 
 /* Returns the current thread's priority. */
 int
