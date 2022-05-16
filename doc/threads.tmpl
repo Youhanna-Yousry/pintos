@@ -172,6 +172,11 @@ thread of the lock and a list element for list locks in struct thread.
 
 - If thread_set_priority() was called when another thread was editing priority thorugh
   donation. Interrupts were disabled during thread_set_priority() to avoid such behavior.
+  However, in our implementation it was not necessary to disable interrupts for that case.
+  Since priority donation updates the priority in struct lock, and thread_set_priority() 
+  updates original_priority (in struct thread). Each of them update a differente variable,
+  so no race condition may occurs. But we disabled interrupts to make sure that the priority
+  of thread is actually updated (thread not blocked until priority is updated).
 
 - A lock can be used to prevent race conditions on priority, when one thread is editing
   it, no other thread can. However, lock_acquire() itself disable interrupts.
