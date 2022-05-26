@@ -201,12 +201,7 @@ thread_create (const char *name, int priority,
   }
   tid = t->tid = allocate_tid ();
 
-  /*User program*/
-  /*establish communication link*/
-  struct thread *parent_thread = thread_current ();
-  t->parent_thread = parent_thread;
 
-  sema_down(&(parent_thread->parent_child_sync));
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -225,6 +220,13 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  /*User program*/
+  /*establish communication link*/
+  struct thread *parent_thread = thread_current ();
+  t->parent_thread = parent_thread;
+  sema_down(&(parent_thread->parent_child_sync));
+
   if(t->priority > thread_get_priority()) thread_yield ();
 
   return tid;

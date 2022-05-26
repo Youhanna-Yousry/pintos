@@ -14,7 +14,7 @@
 #include <string.h>
 #include "fixed-point.h"
 #include "synch.h"
-#include "../filesys/file.c"
+// #include "../filesys/file.c"
 
 
 /* States in a thread's life cycle. */
