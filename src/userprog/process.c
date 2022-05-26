@@ -9,7 +9,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "filesys/directory.h"
-#include "filesys/file.h"
+#include "../filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/flags.h"
 #include "threads/init.h"
@@ -17,6 +17,9 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+
+#define DEBUG_STACK true
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -53,6 +56,8 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  /*parsing*/
+
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -60,6 +65,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  /*push args to stack*/
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -195,7 +201,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -302,7 +308,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -312,6 +318,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
+  file_deny_write(file);
   file_close (file);
   return success;
 }
@@ -427,7 +434,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *file_name) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -441,6 +448,55 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+  /*Parsing*/
+  char *token, *save_ptr;
+  size_t size = strlen(file_name);
+  char filename[size];
+  strlcpy(filename, file_name, size);
+  // while(isblank(filename[i]) && i < size)  i++;
+  // char *str = filename[i];
+  int argc = 0;
+  for(token = strtok_r(filename, " ", &save_ptr);
+           token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
+             argc++;
+           }
+  char *argv[argc];
+  char *ptr = filename;
+  for(int i = 0; i < argc; i++){
+    argv[count - 1 - i] = ptr;
+    while(*ptr != '\0')  ptr++;
+    while(*ptr == '\0')  ptr++;
+  }
+  int args_len = 0;
+  if (DEBUG_STACK) void **old_esp = esp;
+  for(int i = 0; i < argc; i++){
+    size_t arg_len = strlen(argv[i]);
+    args_len += arg_len;
+    *esp -= arg_len;
+    memcpy(*esp, argv[i], arg_len);
+  }
+  int word_align = 4 - args_len % 4;
+  if(word_align > 0){
+    *esp -= word_align;
+    memset(*esp, 0, word_align);
+  }
+  *esp -= sizeof(char *);
+  memset(*esp, 0, sizeof(char *));
+
+  for(int i = 0; i < argc; i++){
+    *esp -= sizeof(char *);
+    memcpy(*esp, &(argv[i]), sizeof(char *));
+  }
+    *esp -= sizeof(int);
+    memcpy(*esp, argc, sizeof(int));
+
+    *esp -= sizeof(char**);
+    memcpy(*esp, &argv[argc - 1], sizeof(char**));
+
+    if (DEBUG_STACK) hex_dump(0, *esp, old_esp - esp, true);
+
+  /*Push onto the stack*/
+
   return success;
 }
 

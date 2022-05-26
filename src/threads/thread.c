@@ -201,6 +201,13 @@ thread_create (const char *name, int priority,
   }
   tid = t->tid = allocate_tid ();
 
+  /*User program*/
+  /*establish communication link*/
+  struct thread *parent_thread = thread_current ();
+  t->parent_thread = parent_thread;
+
+  sema_down(&(parent_thread->parent_child_sync));
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -670,6 +677,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->wait_child, 0);
   sema_init(&t->parent_child_sync, 0);
   t->fd_last = 0;
+  t->parent_thread = NULL;
 
 
 
