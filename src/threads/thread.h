@@ -13,6 +13,9 @@
 #include <stdint.h>
 #include <string.h>
 #include "fixed-point.h"
+#include "synch.h"
+#include "../filesys/file.c"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -115,10 +118,34 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
+   /*User program fields*/
+   struct list open_files;                /*keeps track of opened file by the process*/
+   struct list child_processes;           /*keeps track of all child processes*/
+   struct thread *parent_thread;          /*points to the parent of the thread*/
+   bool child_creataion_success;          /*status of child creation*/
+   int child_status;                      /*status of child process that we wait on*/
+   struct semaphore wait_child;           /*used to wait for child process*/
+   struct semaphore parent_child_sync;    /*synchonizes between parent and child*/
+   struct file *executable_file;          /*executable of the process*/
+   int fd_last;
+
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+   /*Used in userprog*/
+  struct child_process {
+     tid_t pid;
+     struct thread *t;
+     struct list_elem elem;
+  }
+   /*opened files by the process*/
+  struct open_file {
+     int fd;
+     struct file *fp;
+     struct list_elem elem;
+  }
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

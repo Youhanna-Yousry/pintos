@@ -101,6 +101,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -659,8 +660,19 @@ init_thread (struct thread *t, const char *name, int priority)
   t->wait = NULL;
   list_init (&t->locks);
   t->original_priority = priority;
-
   /* Doesn't relate to priorty donation */
+
+  /*User program fields*/
+  list_init (&t->open_files);
+  list_init (&t->child_processes);
+  t->child_creataion_success = false;
+  t->child_status = 0;
+  sema_init(&t->wait_child, 0);
+  sema_init(&t->parent_child_sync, 0);
+  t->fd_last = 0;
+
+
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
