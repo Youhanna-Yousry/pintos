@@ -122,10 +122,7 @@ start_process (void *file_name_)
   struct thread *t = thread_current ();
 
   if(success && t->parent_thread != NULL){
-    struct child_process *child = malloc(sizeof(struct child_process));
-    child->pid = t->tid;
-    child->t = t;
-    list_push_back(&(t->parent_thread->child_processes), &(child->elem));
+    list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
     printf("heyyyy\n");
     sema_up(&(t->parent_thread->parent_child_sync));
     sema_down(&(t->parent_thread->parent_child_sync));
@@ -160,9 +157,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true){
-    thread_yield();
-  }
+  // while(true){
+  //   thread_yield();
+  // }
   return -1;
 }
 

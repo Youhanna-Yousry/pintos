@@ -128,6 +128,7 @@ struct thread
    struct semaphore parent_child_sync;    /*synchonizes between parent and child*/
    struct file *executable_file;          /*executable of the process*/
    int fd_last;
+   struct list_elem child_elem;           /*child element in parent children list*/
 
 
     /* Owned by thread.c. */
