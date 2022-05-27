@@ -47,13 +47,19 @@ syscall_handler (struct intr_frame *f)
 {
   case SYS_WRITE:
   {
-    int fd = *((int*)f->esp + 1);
-    void* buffer = (void*)(*((int*)f->esp + 2));
-    unsigned size = *((unsigned*)f->esp + 3);
+    // int fd = *((int*)f->esp + 1);
+    // void* buffer = (void*)(*((int*)f->esp + 2));
+    // unsigned size = *((unsigned*)f->esp + 3);
     //run the syscall, a function of your own making
     //since this syscall returns a value, the return value should be
     // stored in f->eax
     // f->eax = write(fd, buffer, size);
+    int *temp = f->esp;
+    int fd = get_int(&temp);
+    void **tempVoid = f->esp;
+    void* buffer = get_void_ptr(&tempVoid);
+    void **tempSize = f->esp;
+    size_t size = *((size_t *)get_void_ptr(&tempSize));
     
     if(fd == STDOUT_FILENO) putbuf(buffer, size);
     break;
@@ -64,8 +70,13 @@ syscall_handler (struct intr_frame *f)
     break;
   }
   case SYS_EXEC:
+  {
     process_execute(get_char_ptr((char ***)(&(f->esp))));
     printf("yaaaaaw\n");
+    break;
+  }
+  case SYS_WAIT:
+    process_wait(0);
     break;
 }
   printf ("system call!\n");
