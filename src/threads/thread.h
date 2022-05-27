@@ -124,12 +124,12 @@ struct thread
    struct thread *parent_thread;          /*points to the parent of the thread*/
    bool child_creataion_success;          /*status of child creation*/
    int child_status;                      /*status of child process that we wait on*/
-   struct semaphore wait_child;           /*used to wait for child process*/
+   struct semaphore sema_child_wait;           /*used to wait for child process*/
    struct semaphore parent_child_sync;    /*synchonizes between parent and child*/
    struct file *executable_file;          /*executable of the process*/
    int fd_last;
    struct list_elem child_elem;           /*child element in parent children list*/
-
+   tid_t child_waiting_on;                /* thread id of the child that thread waits on */
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */

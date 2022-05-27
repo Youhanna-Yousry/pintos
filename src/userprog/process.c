@@ -157,10 +157,26 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // while(true){
-  //   thread_yield();
-  // }
-  return -1;
+  struct thread *t = thread_current();
+  
+  /* checking if this child belongs to current thread */
+  bool found = false;
+  struct list_elem * child_elem = list_begin (&t->child_processes);
+  for(; child_elem != list_end (&t->child_processes); child_elem = list_next (child_elem)) {
+    struct thread *temp = list_entry(child_elem, struct thread, child_elem);
+    if (child_tid == temp->tid){
+      found = true;
+      break;
+    }
+  }
+  
+  if(!found){
+    return -1;
+  }
+
+  sema_down(&t->sema_child_wait);
+  list_remove(child_elem);
+  return t->child_status;
 }
 
 /* Free the current process's resources. */

@@ -71,3 +71,8 @@ syscall_handler (struct intr_frame *f)
   printf ("system call!\n");
   
 }
+
+
+int wait(tid_t tid){  //Exchange with process_wait() implementation?
+  return process_wait(tid);
+}

@@ -3,3 +3,4 @@
 
 #clion ignored files
 .idea/*
+src/.vscode/settings.json
