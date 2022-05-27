@@ -206,7 +206,7 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 
   ticks++;
   thread_tick ();
-  
+
 
   if(thread_mlfqs) {
     struct thread *t = thread_current ();

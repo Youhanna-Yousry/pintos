@@ -60,7 +60,7 @@ syscall_handler (struct intr_frame *f)
   }
   case SYS_EXIT:
   {
-    thread_exit ();
+    process_exit();
     break;
   }
   case SYS_EXEC:

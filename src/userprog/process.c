@@ -20,6 +20,7 @@
 
 
 #define DEBUG_STACK false
+#define DEBBUG_LOAD true
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -43,6 +44,9 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  printf("hiiii\n");
+  sema_down(&(thread_current()->parent_child_sync));
+  if(thread_current()->child_status == false) tid = TID_ERROR;  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -58,79 +62,86 @@ start_process (void *file_name_)
   bool success;
   /*parsing*/
 
-  char *token, *save_ptr;
-  size_t size = strlen(file_name);
-  char filename[size];
-  strlcpy(filename, file_name, size);
-  // while(isblank(filename[i]) && i < size)  i++;
-  // char *str = filename[i];
-  int argc = 0;
-  for(token = strtok_r(filename, " ", &save_ptr);
-           token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
-             argc++;
-           }
-  char *argv[argc];
-  char *ptr = filename;
-  for(int i = 0; i < argc; i++){
-    argv[argc - 1 - i] = ptr;
-    while(*ptr != '\0')  ptr++;
-    while(*ptr == '\0')  ptr++;
-  }
+  // char *token, *save_ptr;
+  // size_t size = strlen(file_name);
+  // char filename[size];
+  // strlcpy(filename, file_name, size);
+  // // while(isblank(filename[i]) && i < size)  i++;
+  // // char *str = filename[i];
+  // int argc = 0;
+  // for(token = strtok_r(filename, " ", &save_ptr);
+  //          token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
+  //            argc++;
+  //          }
+  // char *argv[argc];
+  // char *ptr = filename;
+  // for(int i = 0; i < argc; i++){
+  //   argv[argc - 1 - i] = ptr;
+  //   while(*ptr != '\0')  ptr++;
+  //   while(*ptr == '\0')  ptr++;
+  // }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (argv[argc - 1], &if_.eip, &if_.esp);
-  /*push args to stack*/
-  void **esp = &if_.esp;
-
-  int args_len = 0;
-  void **old_esp = esp;
-  for(int i = 0; i < argc; i++){
-    size_t arg_len = strlen(argv[i]);
-    args_len += arg_len;
-    *esp -= arg_len;
-    memcpy(*esp, argv[i], arg_len);
-  }
-  int word_align = 4 - args_len % 4;
-  if(word_align > 0){
-    *esp -= word_align;
-    memset(*esp, 0, word_align);
-  }
-  *esp -= sizeof(char *);
-  memset(*esp, 0, sizeof(char *));
-
-  for(int i = 0; i < argc; i++){
-    *esp -= sizeof(char *);
-    memcpy(*esp, &(argv[i]), sizeof(char *));
-  }
-  *esp -= sizeof(int);
-  memcpy(*esp, &argc, sizeof(int));
-
-  *esp -= sizeof(char **);
-  memcpy(*esp, &argv[argc - 1], sizeof(char *));
-
-  *esp -= sizeof(void *);
-
-  memset(*esp, 0, sizeof(void *));
+  if(DEBBUG_LOAD) printf("<1>\n");
+  success = load (file_name, &if_.eip, &if_.esp);
+  if(DEBBUG_LOAD) printf("<2>\n");
 
 
-  if (DEBUG_STACK) hex_dump(0, *esp, old_esp - esp, true);
+  // /*push args to stack*/
+  // void **esp = &if_.esp;
+
+  // int args_len = 0;
+  // void **old_esp = esp;
+  // for(int i = 0; i < argc; i++){
+  //   size_t arg_len = strlen(argv[i]);
+  //   args_len += arg_len;
+  //   *esp -= arg_len;
+  //   memcpy(*esp, argv[i], arg_len);
+  // }
+  // int word_align = 4 - args_len % 4;
+  // if(word_align > 0){
+  //   *esp -= word_align;
+  //   memset(*esp, 0, word_align);
+  // }
+  // *esp -= sizeof(char *);
+  // memset(*esp, 0, sizeof(char *));
+
+  // for(int i = 0; i < argc; i++){
+  //   *esp -= sizeof(char *);
+  //   memcpy(*esp, &(argv[i]), sizeof(char *));
+  // }
+  // *esp -= sizeof(int);
+  // memcpy(*esp, &argc, sizeof(int));
+
+  // *esp -= sizeof(char **);
+  // memcpy(*esp, &argv[argc - 1], sizeof(char *));
+
+  // *esp -= sizeof(void *);
+
+  // memset(*esp, 0, sizeof(void *));
+
+
+  // if (DEBUG_STACK) hex_dump(0, *esp, *old_esp - *esp, true);
+
+  palloc_free_page (file_name);
+
 
   struct thread *t = thread_current ();
 
   if(success && t->parent_thread != NULL){
     list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
-    printf("heyyyy\n");
+    t->parent_thread->child_status = true;
     sema_up(&(t->parent_thread->parent_child_sync));
     sema_down(&(t->parent_thread->parent_child_sync));
   }
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success){
+    t->parent_thread->child_status = false;
     sema_up(&(t->parent_thread->parent_child_sync));
     thread_exit ();
   } 
@@ -283,7 +294,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, const char *file_name);
+static bool setup_stack (void **esp, int argc, char *argv[]);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -296,6 +307,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -303,19 +315,37 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-  /*extract executable name*/
-  // size_t size = strlen(file_name);
-  // char filename[size];
-  // strlcpy(filename, file_name, size);
+
+  /*Parsing*/
+  char *token, *save_ptr;
+  size_t size = strlen(file_name);
+  char filename[1000000]; /*????????????????????????????????????????*/
+  strlcpy(filename, file_name, size);
+  // while(isblank(filename[i]) && i < size)  i++;
+  // char *str = filename[i];
+  int argc = 0;
+  for(token = strtok_r(filename, " ", &save_ptr);
+           token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
+             argc++;
+           }
+  char *argv[1000000]; /*????????????????????????????????????????*/
+  char *ptr = filename;
+  for(int i = 0; i < argc; i++){
+    argv[argc - 1 - i] = ptr;
+    while(*ptr != '\0')  ptr++;
+    while(*ptr == '\0')  ptr++;
+  }
+  if(DEBBUG_LOAD) printf("<3>\n");
 
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (argv[argc - 1]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -395,7 +425,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp, file_name))
+  if (!setup_stack (esp, argc, argv))
     goto done;
 
   /* Start address. */
@@ -521,7 +551,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp, const char *file_name) 
+setup_stack (void **esp, int argc, char *argv[]) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -535,61 +565,43 @@ setup_stack (void **esp, const char *file_name)
       else
         palloc_free_page (kpage);
     }
-  // /*Parsing*/
-  // char *token, *save_ptr;
-  // size_t size = strlen(file_name);
-  // char filename[size];
-  // strlcpy(filename, file_name, size);
-  // // while(isblank(filename[i]) && i < size)  i++;
-  // // char *str = filename[i];
-  // int argc = 0;
-  // for(token = strtok_r(filename, " ", &save_ptr);
-  //          token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
-  //            argc++;
-  //          }
-  // char *argv[argc];
-  // char *ptr = filename;
-  // for(int i = 0; i < argc; i++){
-  //   argv[argc - 1 - i] = ptr;
-  //   while(*ptr != '\0')  ptr++;
-  //   while(*ptr == '\0')  ptr++;
-  // }
-  // int args_len = 0;
-  // void **old_esp = esp;
-  // for(int i = 0; i < argc; i++){
-  //   size_t arg_len = strlen(argv[i]);
-  //   args_len += arg_len;
-  //   *esp -= arg_len;
-  //   memcpy(*esp, argv[i], arg_len);
-  // }
-  // int word_align = 4 - args_len % 4;
-  // if(word_align > 0){
-  //   *esp -= word_align;
-  //   memset(*esp, 0, word_align);
-  // }
-  // *esp -= sizeof(char *);
-  // memset(*esp, 0, sizeof(char *));
+  /*push args to stack*/
 
-  // for(int i = 0; i < argc; i++){
-  //   *esp -= sizeof(char *);
-  //   memcpy(*esp, &(argv[i]), sizeof(char *));
-  // }
-  // *esp -= sizeof(int);
-  // memcpy(*esp, &argc, sizeof(int));
+    int args_len = 0;
+    void **old_esp = esp;
+    for(int i = 0; i < argc; i++){
+      size_t arg_len = strlen(argv[i]);
+      args_len += arg_len;
+      *esp -= arg_len;
+      memcpy(*esp, argv[i], arg_len);
+    }
+    int word_align = 4 - args_len % 4;
+    if(word_align > 0){
+      *esp -= word_align;
+      memset(*esp, 0, word_align);
+    }
+    *esp -= sizeof(char *);
+    memset(*esp, 0, sizeof(char *));
 
-  // *esp -= sizeof(char **);
-  // memcpy(*esp, &argv[argc - 1], sizeof(char *));
+    for(int i = 0; i < argc; i++){
+      *esp -= sizeof(char *);
+      memcpy(*esp, &(argv[i]), sizeof(char *));
+    }
+    *esp -= sizeof(int);
+    memcpy(*esp, &argc, sizeof(int));
 
-  // *esp -= sizeof(void *);
+    *esp -= sizeof(char **);
+    memcpy(*esp, &argv[argc - 1], sizeof(char *));
 
-  // memset(*esp, 0, sizeof(void *));
+    *esp -= sizeof(void *);
+
+    memset(*esp, 0, sizeof(void *));
 
 
-  // if (DEBUG_STACK) hex_dump(0, *esp, old_esp - esp, true);
+    if (DEBUG_STACK) hex_dump(0, *esp, *old_esp - *esp, true);
 
-  // /*Push onto the stack*/
 
-  return success;
+    return success;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
