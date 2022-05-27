@@ -70,72 +70,16 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  /*parsing*/
-
-  // char *token, *save_ptr;
-  // size_t size = strlen(file_name);
-  // char filename[size];
-  // strlcpy(filename, file_name, size);
-  // // while(isblank(filename[i]) && i < size)  i++;
-  // // char *str = filename[i];
-  // int argc = 0;
-  // for(token = strtok_r(filename, " ", &save_ptr);
-  //          token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
-  //            argc++;
-  //          }
-  // char *argv[argc];
-  // char *ptr = filename;
-  // for(int i = 0; i < argc; i++){
-  //   argv[argc - 1 - i] = ptr;
-  //   while(*ptr != '\0')  ptr++;
-  //   while(*ptr == '\0')  ptr++;
-  // }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
   if(DEBBUG_LOAD) printf("<1>\n");
+
   success = load (file_name, &if_.eip, &if_.esp);
-  // if(DEBBUG_LOAD) printf("<2>\n");
-
-
-  // /*push args to stack*/
-  // void **esp = &if_.esp;
-
-  // int args_len = 0;
-  // void **old_esp = esp;
-  // for(int i = 0; i < argc; i++){
-  //   size_t arg_len = strlen(argv[i]);
-  //   args_len += arg_len;
-  //   *esp -= arg_len;
-  //   memcpy(*esp, argv[i], arg_len);
-  // }
-  // int word_align = 4 - args_len % 4;
-  // if(word_align > 0){
-  //   *esp -= word_align;
-  //   memset(*esp, 0, word_align);
-  // }
-  // *esp -= sizeof(char *);
-  // memset(*esp, 0, sizeof(char *));
-
-  // for(int i = 0; i < argc; i++){
-  //   *esp -= sizeof(char *);
-  //   memcpy(*esp, &(argv[i]), sizeof(char *));
-  // }
-  // *esp -= sizeof(int);
-  // memcpy(*esp, &argc, sizeof(int));
-
-  // *esp -= sizeof(char **);
-  // memcpy(*esp, &argv[argc - 1], sizeof(char *));
-
-  // *esp -= sizeof(void *);
-
-  // memset(*esp, 0, sizeof(void *));
-
-
-  // if (DEBUG_STACK) hex_dump(0, *esp, *old_esp - *esp, true);
 
   palloc_free_page (file_name);
 
@@ -336,9 +280,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
     while(*ptr != '\0')  ptr++;
     while(*ptr == '\0')  ptr++;
   }
-  // putbuf("<3>\n", 4);
-
-  // if(DEBBUG_LOAD) printf("<3>\n");
 
 
   /* Open executable file. */
@@ -560,11 +501,14 @@ setup_stack (void **esp, int argc, char *argv[])
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
         *esp = PHYS_BASE;
+
          /*push args to stack*/
 
         int args_len = 0;
         void *old_esp = *esp;
         char *ptr[argc];
+
+        /*arguments push*/
         for(int i = 0; i < argc; i++){
           size_t arg_len = strlen(argv[i]) + 1;
           args_len += arg_len;
@@ -572,41 +516,44 @@ setup_stack (void **esp, int argc, char *argv[])
           ptr[i] = (char *)*esp;
           memcpy(*esp, argv[i], arg_len);
         }
+
+        /*word aligning*/
         int word_align = 4 - args_len % 4;
         if(word_align > 0){
           *esp -= word_align;
           memset(*esp, 0, word_align);
         }
-        // if(DEBUG_STACK) hex_dump(0, *esp, args_len + 16, true);
+
+        /*sentinel*/
         *esp -= sizeof(char *);
         memset(*esp, 0, sizeof(char *));
 
+        /*arguments addresses*/
         for(int i = 0; i < argc; i++){
           *esp -= sizeof(char *);
           memcpy(*esp, &ptr[i], sizeof(char *));
         }
+
+        /* argv addres*/
         char **argv_ptr = (char **)*esp;
         *esp -= sizeof(char **);
         memcpy(*esp, &argv_ptr, sizeof(char **));
 
+        /*push argc*/
         *esp -= sizeof(int);
         memcpy(*esp, &argc, sizeof(int));
 
 
-
+        /*return address*/
         *esp -= sizeof(void *);
-
         memset(*esp, 0, sizeof(void *));
 
-
         if (DEBUG_STACK) hex_dump((uintptr_t)*esp, *esp, old_esp - *esp, true);
+
       }
       else
         palloc_free_page (kpage);
     }
-
-
-
     return success;
 }
 

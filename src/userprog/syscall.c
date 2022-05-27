@@ -52,45 +52,23 @@ syscall_handler (struct intr_frame *f)
   printf ("system call!\n");
   
   if(SYS_CALL) printf("<1>\n");
-  // hex_dump(0, f->esp, 128, true);
 
   switch(get_int((int **)(&(f->esp))))
-  // switch(*(int*)f->esp)
 {
   case SYS_WRITE:
   {
-    // int fd = *((int*)f->esp + 1);
-    // printf("out esp : %p\n", f->esp);
-
     int fd = get_int((int **)(&f->esp));
     if(SYS_CALL) printf("<2>fd: %d\n", fd);
 
-    // void* buffer = (void*)(*((int*)f->esp + 2));
     void *buffer = get_void_ptr((void ***)&f->esp);
     if(SYS_CALL) printf("<3>\n");
 
-    // unsigned size = *((unsigned*)f->esp + 3);
     unsigned size = (unsigned) get_int((int **) (&f->esp));
     if(SYS_CALL) printf("<4> size: %d\n", size);
 
-    // fd = *((int*)f->esp + 1);
-    // printf("fd: %d\n", fd);
-    //run the syscall, a function of your own making
-    //since this syscall returns a value, the return value should be
-    // stored in f->eax
-    // f->eax = write(fd, buffer, size);
-    // int *temp = f->esp;
-    // int fd = get_int(&temp);
-    // printf("fd: %d\n", fd);
-
-    // void **tempVoid = f->esp;
-    // void* buffer = get_void_ptr(&tempVoid);
-
-    // int *tempSize = f->esp;
-    // size_t size = get_int(&tempSize);
-
     if(fd == STDOUT_FILENO) putbuf(buffer, size);
-    if(SYS_CALL) putbuf("nope\n", 5);
+
+    if(SYS_CALL) printf("<5>\n");
     break;
   }
   case SYS_EXIT:
@@ -101,7 +79,6 @@ syscall_handler (struct intr_frame *f)
   case SYS_EXEC:
   {
     process_execute(get_char_ptr((char ***)(&(f->esp))));
-    printf("yaaaaaw\n");
     break;
   }
   
