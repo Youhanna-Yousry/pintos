@@ -197,6 +197,18 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /* Removing child list while updating parent of them to NULL */
+  while(!list_empty(&cur->child_processes)){
+    struct list_elem * temp = list_pop_front(&cur->child_processes);
+    struct thread * child = list_entry(temp, struct thread, child_elem);
+    child->parent_thread = NULL;
+    list_remove(temp);
+  }
+
+  if(cur->parent_thread != NULL){
+    list_remove(&cur->child_elem);
+  }
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
