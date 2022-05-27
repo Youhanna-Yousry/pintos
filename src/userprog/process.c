@@ -43,7 +43,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   /* Create a new thread to execute FILE_NAME. */
 
-  
+
   char *save_ptr;
   char filename[strlen(file_name) + 1];
   strlcpy(filename, file_name, strlen(file_name) + 1);
@@ -53,7 +53,7 @@ process_execute (const char *file_name)
 
   sema_down(&(thread_current()->parent_child_sync));
 
-  // if(thread_current()->child_status == false) tid = TID_ERROR;  
+  if(thread_current()->child_status == false) tid = TID_ERROR;  
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
