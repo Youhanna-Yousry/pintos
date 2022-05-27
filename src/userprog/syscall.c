@@ -49,7 +49,7 @@ get_void_ptr(void ***esp) {
 static void
 syscall_handler (struct intr_frame *f) 
 { 
-  printf ("system call!\n");
+  // printf ("system call!\n");
   
   if(SYS_CALL) printf("<1>\n");
 

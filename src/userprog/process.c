@@ -41,19 +41,17 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  printf("original name: %s\n", fn_copy);
   /* Create a new thread to execute FILE_NAME. */
+
+  
   char *save_ptr;
   char filename[strlen(file_name) + 1];
   strlcpy(filename, file_name, strlen(file_name) + 1);
   char *name = strtok_r(filename, " ", &save_ptr);
-  printf("%s\n", name);
 
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
 
-  printf("hiiii\n");
   sema_down(&(thread_current()->parent_child_sync));
-  printf("tid = %d\n", tid);
 
   // if(thread_current()->child_status == false) tid = TID_ERROR;  
 
@@ -283,7 +281,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 
   /* Open executable file. */
-  printf("heyyyyy  %d %s\n", argc, argv[argc - 1]);
   file = filesys_open (argv[argc - 1]);
   if (file == NULL) 
     {
