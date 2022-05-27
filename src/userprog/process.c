@@ -222,6 +222,27 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  
+  /*Parsing*/
+  char *token, *save_ptr;
+  size_t size = strlen(file_name)+1;
+  char filename[128]; /*????????????????????????????????????????*/
+  strlcpy(filename, file_name, size);
+  while(isblank(filename[i]) && i < size)  i++;
+  char *str = filename[i];
+  int argc = 0;
+  for(token = strtok_r(filename, " ", &save_ptr);
+           token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
+             argc++;
+           }
+  char *argv[128]; /*????????????????????????????????????????*/
+  char *ptr = filename;
+  for(int i = 0; i < argc; i++){
+    argv[argc - 1 - i] = ptr;
+    while(*ptr != '\0')  ptr++;
+    while(*ptr == '\0')  ptr++;
+  }
+
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -438,7 +459,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
