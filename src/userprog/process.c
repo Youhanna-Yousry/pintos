@@ -559,41 +559,47 @@ setup_stack (void **esp, int argc, char *argv[])
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
-        *esp = PHYS_BASE - 12;
-          /*push args to stack*/
+        *esp = PHYS_BASE;
+         /*push args to stack*/
 
-        // int args_len = 0;
-        // void **old_esp = esp;
-        // for(int i = 0; i < argc; i++){
-        //   size_t arg_len = strlen(argv[i]);
-        //   args_len += arg_len;
-        //   *esp -= arg_len;
-        //   memcpy(*esp, argv[i], arg_len);
-        // }
-        // int word_align = 4 - args_len % 4;
-        // if(word_align > 0){
-        //   *esp -= word_align;
-        //   memset(*esp, 0, word_align);
-        // }
-        // *esp -= sizeof(char *);
-        // memset(*esp, 0, sizeof(char *));
+        int args_len = 0;
+        void *old_esp = *esp;
+        char *ptr[argc];
+        for(int i = 0; i < argc; i++){
+          size_t arg_len = strlen(argv[i]) + 1;
+          args_len += arg_len;
+          *esp -= arg_len;
+          ptr[i] = (char *)*esp;
+          memcpy(*esp, argv[i], arg_len);
+        }
+        int word_align = 4 - args_len % 4;
+        if(word_align > 0){
+          *esp -= word_align;
+          memset(*esp, 0, word_align);
+        }
+        // if(DEBUG_STACK) hex_dump(0, *esp, args_len + 16, true);
+        *esp -= sizeof(char *);
+        memset(*esp, 0, sizeof(char *));
 
-        // for(int i = 0; i < argc; i++){
-        //   *esp -= sizeof(char *);
-        //   memcpy(*esp, &(argv[i]), sizeof(char *));
-        // }
-        // *esp -= sizeof(int);
-        // memcpy(*esp, &argc, sizeof(int));
+        for(int i = 0; i < argc; i++){
+          *esp -= sizeof(char *);
+          memcpy(*esp, &ptr[i], sizeof(char *));
+        }
+        char **argv_ptr = (char **)*esp;
+        *esp -= sizeof(char **);
+        memcpy(*esp, &argv_ptr, sizeof(char **));
 
-        // *esp -= sizeof(char **);
-        // memcpy(*esp, &argv[argc - 1], sizeof(char *));
-
-        // *esp -= sizeof(void *);
-
-        // memset(*esp, 0, sizeof(void *));
+        *esp -= sizeof(int);
+        memcpy(*esp, &argc, sizeof(int));
 
 
-        // if (DEBUG_STACK) hex_dump(0, *esp, 12, true);
+
+        *esp -= sizeof(void *);
+
+        memset(*esp, 0, sizeof(void *));
+
+
+        if (DEBUG_STACK) hex_dump((uintptr_t)*esp, *esp, old_esp - *esp, true);
       }
       else
         palloc_free_page (kpage);

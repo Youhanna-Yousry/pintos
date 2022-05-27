@@ -5,6 +5,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+#define SYS_CALL false
+
 
 
 static void syscall_handler (struct intr_frame *);
@@ -49,8 +51,8 @@ syscall_handler (struct intr_frame *f)
 { 
   printf ("system call!\n");
   
-  printf("<1>\n");
-  hex_dump(0, f->esp, 128, true);
+  if(SYS_CALL) printf("<1>\n");
+  // hex_dump(0, f->esp, 128, true);
 
   switch(get_int((int **)(&(f->esp))))
   // switch(*(int*)f->esp)
@@ -61,15 +63,15 @@ syscall_handler (struct intr_frame *f)
     // printf("out esp : %p\n", f->esp);
 
     int fd = get_int((int **)(&f->esp));
-    printf("<2>fd: %d\n", fd);
+    if(SYS_CALL) printf("<2>fd: %d\n", fd);
 
     // void* buffer = (void*)(*((int*)f->esp + 2));
     void *buffer = get_void_ptr((void ***)&f->esp);
-    printf("<3>\n");
+    if(SYS_CALL) printf("<3>\n");
 
     // unsigned size = *((unsigned*)f->esp + 3);
-    int size = get_int((int **) (&f->esp));
-    printf("<4> size: %d\n", size);
+    unsigned size = (unsigned) get_int((int **) (&f->esp));
+    if(SYS_CALL) printf("<4> size: %d\n", size);
 
     // fd = *((int*)f->esp + 1);
     // printf("fd: %d\n", fd);
@@ -88,7 +90,7 @@ syscall_handler (struct intr_frame *f)
     // size_t size = get_int(&tempSize);
 
     if(fd == STDOUT_FILENO) putbuf(buffer, size);
-    putbuf("nope\n", 5);
+    if(SYS_CALL) putbuf("nope\n", 5);
     break;
   }
   case SYS_EXIT:
