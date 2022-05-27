@@ -8,9 +8,9 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
-#include "filesys/directory.h"
+#include "../filesys/directory.h"
 #include "../filesys/file.h"
-#include "filesys/filesys.h"
+#include "../filesys/filesys.h"
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 
-#define DEBUG_STACK false
-#define DEBBUG_LOAD true
+#define DEBUG_STACK true
+#define DEBBUG_LOAD false
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -41,7 +41,7 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  printf("original name: %s\n", fn_copy);
   /* Create a new thread to execute FILE_NAME. */
   char *save_ptr;
   char filename[strlen(file_name) + 1];
@@ -53,9 +53,9 @@ process_execute (const char *file_name)
 
   printf("hiiii\n");
   sema_down(&(thread_current()->parent_child_sync));
-  // printf("noooooooo\n");
+  printf("tid = %d\n", tid);
 
-  if(thread_current()->child_status == false) tid = TID_ERROR;  
+  // if(thread_current()->child_status == false) tid = TID_ERROR;  
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -319,7 +319,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /*Parsing*/
   char *token, *save_ptr;
-  size_t size = strlen(file_name)+1;
+  size_t size = strlen(file_name) + 1;
   char filename[128]; /*????????????????????????????????????????*/
   strlcpy(filename, file_name, size);
   // while(isblank(filename[i]) && i < size)  i++;
@@ -342,10 +342,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 
   /* Open executable file. */
+  printf("heyyyyy  %d %s\n", argc, argv[argc - 1]);
   file = filesys_open (argv[argc - 1]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", argv[argc - 1]);
       goto done; 
     }
 
@@ -358,7 +359,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", argv[argc - 1]);
       goto done; 
     }
 
@@ -557,45 +558,47 @@ setup_stack (void **esp, int argc, char *argv[])
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE - 12;
+          /*push args to stack*/
+
+        // int args_len = 0;
+        // void **old_esp = esp;
+        // for(int i = 0; i < argc; i++){
+        //   size_t arg_len = strlen(argv[i]);
+        //   args_len += arg_len;
+        //   *esp -= arg_len;
+        //   memcpy(*esp, argv[i], arg_len);
+        // }
+        // int word_align = 4 - args_len % 4;
+        // if(word_align > 0){
+        //   *esp -= word_align;
+        //   memset(*esp, 0, word_align);
+        // }
+        // *esp -= sizeof(char *);
+        // memset(*esp, 0, sizeof(char *));
+
+        // for(int i = 0; i < argc; i++){
+        //   *esp -= sizeof(char *);
+        //   memcpy(*esp, &(argv[i]), sizeof(char *));
+        // }
+        // *esp -= sizeof(int);
+        // memcpy(*esp, &argc, sizeof(int));
+
+        // *esp -= sizeof(char **);
+        // memcpy(*esp, &argv[argc - 1], sizeof(char *));
+
+        // *esp -= sizeof(void *);
+
+        // memset(*esp, 0, sizeof(void *));
+
+
+        // if (DEBUG_STACK) hex_dump(0, *esp, 12, true);
+      }
       else
         palloc_free_page (kpage);
     }
-  /*push args to stack*/
 
-    // int args_len = 0;
-    // void **old_esp = esp;
-    // for(int i = 0; i < argc; i++){
-    //   size_t arg_len = strlen(argv[i]);
-    //   args_len += arg_len;
-    //   *esp -= arg_len;
-    //   memcpy(*esp, argv[i], arg_len);
-    // }
-    // int word_align = 4 - args_len % 4;
-    // if(word_align > 0){
-    //   *esp -= word_align;
-    //   memset(*esp, 0, word_align);
-    // }
-    // *esp -= sizeof(char *);
-    // memset(*esp, 0, sizeof(char *));
-
-    // for(int i = 0; i < argc; i++){
-    //   *esp -= sizeof(char *);
-    //   memcpy(*esp, &(argv[i]), sizeof(char *));
-    // }
-    // *esp -= sizeof(int);
-    // memcpy(*esp, &argc, sizeof(int));
-
-    // *esp -= sizeof(char **);
-    // memcpy(*esp, &argv[argc - 1], sizeof(char *));
-
-    // *esp -= sizeof(void *);
-
-    // memset(*esp, 0, sizeof(void *));
-
-
-    // if (DEBUG_STACK) hex_dump(0, *esp, *old_esp - *esp, true);
 
 
     return success;
