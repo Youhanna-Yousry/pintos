@@ -181,7 +181,6 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-
   ASSERT (function != NULL);
 
   /* Allocate thread. */
@@ -191,6 +190,10 @@ thread_create (const char *name, int priority,
 
   /* Initialize thread. */
   init_thread (t, name, priority);
+    /*User program*/
+  /*establish communication link*/
+  t->parent_thread = thread_current ();
+
 
   if (thread_mlfqs) {
     enum intr_level old_level = intr_disable ();
@@ -202,12 +205,12 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
 
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
   kf->function = function;
   kf->aux = aux;
+
 
   /* Stack frame for switch_entry(). */
   ef = alloc_frame (t, sizeof *ef);
@@ -218,14 +221,10 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+
   /* Add to run queue. */
   thread_unblock (t);
 
-  /*User program*/
-  /*establish communication link*/
-  struct thread *parent_thread = thread_current ();
-  t->parent_thread = parent_thread;
-  sema_down(&(parent_thread->parent_child_sync));
 
   if(t->priority > thread_get_priority()) thread_yield ();
 
@@ -331,7 +330,7 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   enum intr_level old_level;
-  // if (DEBUG_YIELD) printf("thread %d yielding...\n", cur->tid);
+  if (DEBUG_YIELD) printf("thread %d yielding...\n", cur->tid);
   
   ASSERT (!intr_context ());
 
@@ -416,7 +415,7 @@ thread_set_priority (int new_priority)
 void
 thread_check_priority(void){
   struct thread *t = thread_current ();
-  if(thread_find_greater_priority(t))
+  if(thread_find_greater_priority(t) && intr_get_level() > 0)
       thread_yield();
 }
 
@@ -785,11 +784,9 @@ schedule (void)
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
-
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
