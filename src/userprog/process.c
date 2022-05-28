@@ -160,6 +160,7 @@ process_exit (void)
 
   if(cur->parent_thread != NULL){
     list_remove(&cur->child_elem);
+    sema_up(&cur->parent_thread->parent_child_sync);
   }
 
   /* Destroy the current process's page directory and switch back
