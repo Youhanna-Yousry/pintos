@@ -24,18 +24,35 @@ syscall_init (void)
 }
 
 int
-get_int(int **esp) {
+get_int(int **esp) 
+{
+  validate_void_ptr(*esp);
   return *((*esp)++);
 }
 
 char *
-get_char_ptr(char ***esp) {
+get_char_ptr(char ***esp) 
+{
+  validate_void_ptr(*esp);
+  
   return *((*esp)++);
 }
 
 void *
-get_void_ptr(void ***esp) {
+get_void_ptr(void ***esp) 
+{
+  validate_void_ptr(*esp);
+
   return *((*esp)++);
+}
+
+void
+validate_void_ptr (const void *pt)
+{
+  if (PHYS_BASE < pt || pt < 0x08048000 || pagedir_get_page(thread_current()->pagedir, pt) == NULL)
+  {
+    exit(-1);
+  }
 }
 
 static void

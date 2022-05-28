@@ -7,7 +7,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "userprog/gdt.h"
-#include "userprog/pagedir.h"
+#include "../userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "../filesys/directory.h"
 #include "../filesys/file.h"
@@ -17,7 +17,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "../threads/thread.h"
-#include "threads/vaddr.h"
+#include "../threads/vaddr.h"
 
 
 
@@ -176,6 +176,8 @@ process_exit (void)
     // list_remove(&cur->child_elem);
     sema_up(&cur->parent_thread->parent_child_sync);
   }
+  // if(cur->executable_file != NULL)
+  //   file_allow_write(cur->executable_file);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -413,6 +415,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
+  t->executable_file = file;
   file_deny_write(file);
   file_close (file);
   return success;
