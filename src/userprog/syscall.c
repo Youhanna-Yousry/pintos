@@ -83,7 +83,6 @@ syscall_handler (struct intr_frame *f)
 
 
 int wait(tid_t tid){  //Exchange with process_wait() implementation?
-  printf("tid: %d\n", tid);
   return process_wait(tid);
 }
 

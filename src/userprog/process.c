@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -17,6 +18,7 @@
 #include "threads/palloc.h"
 #include "../threads/thread.h"
 #include "threads/vaddr.h"
+
 
 
 #define DEBUG_STACK false
@@ -304,7 +306,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   for(int i = 0; i < argc; i++){
     argv[argc - 1 - i] = ptr;
     while(*ptr != '\0')  ptr++;
-    while(*ptr == '\0')  ptr++;
+    while(*ptr == '\0' || isblank(*ptr))  ptr++;
   }
 
 
