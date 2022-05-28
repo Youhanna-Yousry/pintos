@@ -55,7 +55,7 @@ process_execute (const char *file_name)
 
   sema_down(&(thread_current()->parent_child_sync));
 
-  if(thread_current()->child_status == false) tid = TID_ERROR;  
+  if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 

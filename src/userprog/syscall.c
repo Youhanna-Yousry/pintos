@@ -75,7 +75,7 @@ syscall_handler (struct intr_frame *f)
   }
   case SYS_WAIT:
   {
-    wait(get_int((int **)(&f->esp)));
+    f->eax = wait(get_int((int **)(&f->esp)));
     break;
   }
 }  
