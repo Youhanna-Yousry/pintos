@@ -19,7 +19,7 @@
 #include "threads/vaddr.h"
 
 
-#define DEBUG_STACK true
+#define DEBUG_STACK false
 #define DEBBUG_LOAD false
 
 static thread_func start_process NO_RETURN;
@@ -120,11 +120,27 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true){
-    // printf("yielding\n");
-    thread_yield();
+
+  struct thread *t = thread_current();
+  
+  /* checking if this child belongs to current thread */
+  bool found = false;
+  struct list_elem * child_elem = list_begin (&t->child_processes);
+  for(; child_elem != list_end (&t->child_processes); child_elem = list_next (child_elem)) {
+    struct thread *temp = list_entry(child_elem, struct thread, child_elem);
+    if (child_tid == temp->tid){
+      found = true;
+      break;
+    }
   }
-  return -1;
+  
+  if(!found){
+    return -1;
+  }
+
+  sema_down(&t->sema_child_wait);
+  list_remove(child_elem);
+  return t->child_status;
 }
 
 /* Free the current process's resources. */
@@ -132,8 +148,19 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-  printf("%s: exit(%d)\n", cur->name, 0);
   uint32_t *pd;
+
+  /* Removing child list while updating parent of them to NULL */
+  while(!list_empty(&cur->child_processes)){
+    struct list_elem * temp = list_pop_front(&cur->child_processes);
+    struct thread * child = list_entry(temp, struct thread, child_elem);
+    child->parent_thread = NULL;
+    list_remove(temp);
+  }
+
+  if(cur->parent_thread != NULL){
+    list_remove(&cur->child_elem);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

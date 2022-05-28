@@ -3,7 +3,6 @@
 #include <syscall-nr.h>
 #include "process.h"
 #include "threads/interrupt.h"
-#include "threads/thread.h"
 
 #define SYS_CALL false
 
@@ -26,18 +25,11 @@ syscall_init (void)
 
 int
 get_int(int **esp) {
-  // printf("before esp : %p\n", *esp);
-  // *esp += 1; 
-  // printf("after esp : %p\n", *esp);
-  // int value = **esp;
-
   return *((*esp)++);
 }
 
 char *
 get_char_ptr(char ***esp) {
-  // char *ptr = (char *)*esp;
-  // *esp += 1; 
   return *((*esp)++);
 }
 
@@ -73,19 +65,44 @@ syscall_handler (struct intr_frame *f)
   }
   case SYS_EXIT:
   {
-    process_exit();
+    exit(get_int((int **)(&(f->esp))));
     break;
   }
   case SYS_EXEC:
   {
-    process_execute(get_char_ptr((char ***)(&(f->esp))));
+    f->eax = process_execute(get_char_ptr((char ***)(&(f->esp))));
     break;
   }
-  
   case SYS_WAIT:
   {
-    process_wait(0);
+    wait(get_int((int **)(&f->esp)));
     break;
   }
 }  
+}
+
+
+int wait(tid_t tid){  //Exchange with process_wait() implementation?
+  printf("tid: %d\n", tid);
+  return process_wait(tid);
+}
+
+/*
+Terminates the current user program, returning status to the kernel. If the process's
+parent waits for it, this is the status that will be returned. Conventionally,
+a status of 0 indicates success and nonzero values indicate errors.
+*/
+void exit(int status){
+  struct thread * t = thread_current();
+  struct thread * parent = t->parent_thread;
+
+  printf("%s: exit(%d)\n" , t -> name , status);
+
+  if(parent != NULL){
+    if(parent->child_waiting_on == t->tid){
+      parent->child_status = status;
+      sema_up(&parent->sema_child_wait);
+    }
+  }
+  thread_exit();
 }
