@@ -98,9 +98,14 @@ void exit(int status){
   printf("%s: exit(%d)\n" , t -> name , status);
 
   if(parent != NULL){
+
     if(parent->child_waiting_on == t->tid){
+    if(DEBUG_WAIT) printf("<8>\n");
       parent->child_status = status;
+      parent->child_waiting_on = -1;
       sema_up(&parent->sema_child_wait);
+    }else{
+      list_remove(&t->child_elem);
     }
   }
   thread_exit();

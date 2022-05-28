@@ -21,8 +21,8 @@
 
 
 
-#define DEBUG_STACK false
-#define DEBBUG_LOAD false
+
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -51,9 +51,14 @@ process_execute (const char *file_name)
   strlcpy(filename, file_name, strlen(file_name) + 1);
   char *name = strtok_r(filename, " ", &save_ptr);
 
+
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  if(DEBUG_WAIT) printf("<1>%s\n", thread_current()->name);
 
   sema_down(&(thread_current()->parent_child_sync));
+
+  if(DEBUG_WAIT) printf("<4>\n");
+
 
   if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
 
@@ -88,14 +93,19 @@ start_process (void *file_name_)
 
   if(success && t->parent_thread != NULL){
     list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
-    t->parent_thread->child_status = true;
+    // t->parent_thread->child_status = true;
+    if(DEBUG_WAIT) printf("<2>%s\n", thread_current()->parent_thread->name);
     sema_up(&(t->parent_thread->parent_child_sync));
-    sema_down(&(t->parent_thread->parent_child_sync));
+    if(DEBUG_WAIT) printf("<3>\n");
+    thread_yield();
+    // sema_down(&(t->parent_thread->parent_child_sync));
+    if(DEBUG_WAIT) printf("<7>\n");
+
   }
 
   /* If load failed, quit. */
   if (!success){
-    t->parent_thread->child_status = false;
+    // t->parent_thread->child_status = false;
     sema_up(&(t->parent_thread->parent_child_sync));
     thread_exit ();
   } 
@@ -124,6 +134,7 @@ process_wait (tid_t child_tid UNUSED)
 {
 
   struct thread *t = thread_current();
+  if(DEBUG_WAIT) printf("<5>\n");
   
   /* checking if this child belongs to current thread */
   bool found = false;
@@ -139,9 +150,10 @@ process_wait (tid_t child_tid UNUSED)
   if(!found){
     return -1;
   }
-
-  sema_down(&t->sema_child_wait);
+  if(DEBUG_WAIT) printf("<6>\n");
+  t->child_waiting_on = child_tid;
   list_remove(child_elem);
+  sema_down(&t->sema_child_wait);
   return t->child_status;
 }
 
@@ -161,7 +173,7 @@ process_exit (void)
   }
 
   if(cur->parent_thread != NULL){
-    list_remove(&cur->child_elem);
+    // list_remove(&cur->child_elem);
     sema_up(&cur->parent_thread->parent_child_sync);
   }
 

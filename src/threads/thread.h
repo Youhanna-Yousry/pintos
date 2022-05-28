@@ -6,6 +6,10 @@
 #define DEBUG_PRIORITY false
 #define DEBUG_YIELD false
 
+#define DEBUG_STACK false
+#define DEBBUG_LOAD false
+#define DEBUG_WAIT false
+
 
 
 #include <debug.h>
