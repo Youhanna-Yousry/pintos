@@ -185,7 +185,9 @@ void
 seek( int fd, unsigned position) {
   struct file *fp = get_file(fd);
   off_t new_pos = (off_t) position;
-  file_seek(fp, new_pos);
+  lock_acquire (&files_sync_lock);  
+    file_seek(fp, new_pos);
+  lock_release (&files_sync_lock);
 }
 
 unsigned
