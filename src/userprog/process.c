@@ -194,7 +194,9 @@ process_exit (void)
 
   if(cur->executable_file != NULL){
     if(DEBUG_MULT) printf("\tclosing exec file\n");
+    file_allow_write(cur->executable_file);
     file_close(cur->executable_file);
+    cur->executable_file = NULL;
   }
 
   /* Removing child list while updating parent of them to NULL */
@@ -208,10 +210,11 @@ process_exit (void)
     list_remove(temp);
   }
 
-  if(cur->executable_file != NULL){
-    // file_close(cur->executable_file);
-    cur->executable_file = NULL;
-  }
+  // if(cur->executable_file != NULL){
+  //   file_allow_write(cur->executable_file);
+  //   file_close(cur->executable_file);
+  //   cur->executable_file = NULL;
+  // }
 
   if(cur->parent_thread != NULL){
     if(cur->parent_thread->child_waiting_on == cur->tid){

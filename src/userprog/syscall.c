@@ -98,79 +98,75 @@ syscall_handler(struct intr_frame *f)
 
   switch (get_int((int **)(&(f->esp))))
   {
-  case SYS_HALT:
-  {
-    halt_wrapper();
-    break;
-  }
-  case SYS_EXIT:
-  {
-    exit_wrapper(f);
-    break;
-  }
-  case SYS_EXEC:
-  {
-    f->eax = exec_wrapper(f);
-    break;
-  }
+    case SYS_HALT:
+    {
+      halt_wrapper();
+      break;
+    }
+    case SYS_EXIT:
+    {
+      exit_wrapper(f);
+      break;
+    }
+    case SYS_EXEC:
+    {
+      f->eax = exec_wrapper(f);
+      break;
+    }
 
-  case SYS_WAIT:
-  {
-    f->eax = wait_wrapper(f);
-    break;
-  }
-  case SYS_CREATE:
-  {
-    f->eax = create_wrapper (f);
-    break;
-  }
-  case SYS_REMOVE:
-  {
-    f->eax = remove_wrapper (f);
-    break;
-  }
-  case SYS_OPEN:
-  {
-    f->eax = open_wrapper (f);
-    break;
-  }
-  case SYS_FILESIZE:
-  {
-    f->eax = file_size_wrapper(f);
-    break;
-  }
+    case SYS_WAIT:
+    {
+      f->eax = wait_wrapper(f);
+      break;
+    }
+    case SYS_CREATE:
+    {
+      f->eax = create_wrapper (f);
+      break;
+    }
+    case SYS_REMOVE:
+    {
+      f->eax = remove_wrapper (f);
+      break;
+    }
+    case SYS_OPEN:
+    {
+      f->eax = open_wrapper (f);
+      break;
+    }
+    case SYS_FILESIZE:
+    {
+      f->eax = file_size_wrapper(f);
+      break;
+    }
 
-  case SYS_READ:
-  {
-    f->eax = read_wrapper(f);
-    break;
-  }
+    case SYS_READ:
+    {
+      f->eax = read_wrapper(f);
+      break;
+    }
 
-  case SYS_WRITE:
-  {
-    f->eax = write_wrapper(f);
-    break;
-  }
-  //   case SYS_SEEK:
-  // {
-
-  //   break;
-  // }
-  // case SYS_TELL:
-  // {
-  //   break;
-  // }
-  // case SYS_CLOSE:
-  // {
-  //   break;
-  // }
-  // }
-
-  // default:
-  //   printf("not implemented yet.\n");
-}  
-
-
+    case SYS_WRITE:
+    {
+      f->eax = write_wrapper(f);
+      break;
+    }
+      case SYS_SEEK:
+    {
+      printf("seek-not implemented yet.\n");
+      break;
+    }
+    case SYS_TELL:
+    {
+      printf("tell-not implemented yet.\n");
+      break;
+    }
+    case SYS_CLOSE:
+    {
+      printf("close-not implemented yet.\n");
+      break;
+    }
+  }  
 }
 
 static bool
