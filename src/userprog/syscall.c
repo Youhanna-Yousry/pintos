@@ -24,12 +24,17 @@ void validate_void_ptr(const void *pt); /*check if the pointer is valid*/
 static bool create_wrapper (struct intr_frame *f);
 static bool remove_wrapper (struct intr_frame *f);
 static int open_wrapper (struct intr_frame *f);
+void seek_wrapper(struct intr_frame *f);
+unsigned tell_wrapper(struct intr_frame *f);
+void close_wrapper(struct intr_frame *f);
 
 /*system calls*/
 static bool create (const char* file, unsigned initiall_size);
 static bool remove (const char *file);
 static int open (const char *file);
-
+void seek( int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
 
 struct file *get_file(int fd);
 
@@ -169,39 +174,39 @@ syscall_handler(struct intr_frame *f)
   }  
 }
 
-static void
+void
 seek_wrapper(struct intr_frame *f) {
   int fd = get_int((int **)(&f->esp));
   unsigned position = (unsigned) get_int((int **) (&f->esp));
   seek(fd, position);
 }
 
-static void
+void
 seek( int fd, unsigned position) {
   struct file *fp = get_file(fd);
   off_t new_pos = (off_t) position;
   file_seek(fp, new_pos);
 }
 
-static unsigned
+unsigned
 tell_wrapper(struct intr_frame *f) {
   int fd = get_int((int **)(&f->esp));
   return tell(fd);
 }
 
-static unsigned
+unsigned
 tell(int fd) {
   struct file *fp = get_file(fd);
   return file_tell(fp);
 }
 
-static void
+void
 close_wrapper(struct intr_frame *f) {
   int fd = get_int((int **)(&f->esp));
   close(fd);
 }
 
-static void
+void
 close(int fd) {
   struct file *fp = get_file(fd);
   file_close(fp);
