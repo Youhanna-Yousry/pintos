@@ -4,6 +4,7 @@
 #include "process.h"
 #include "threads/interrupt.h"
 #include "filesys/filesys.h"
+#include "threads/malloc.h"
 
 #define SYS_CALL false
 
@@ -155,9 +156,9 @@ syscall_handler(struct intr_frame *f)
 
 static bool
 create_wrapper (struct intr_frame *f) {
-  const char *file = (char *) get_char_ptr((char ***)&f->esp);
-  unsigned initial_size = (unsigned) get_int((int **)&f->esp);
-  return create(&file, initial_size);
+  char *file = (char *) get_char_ptr((char ***)(&f->esp));
+  unsigned initial_size = (unsigned) get_int((int **)(&f->esp));
+  return create(file, initial_size);
 }
 
 /*
@@ -173,8 +174,8 @@ create (const char* file, unsigned initiall_size) {
 
 static bool
 remove_wrapper (struct intr_frame *f) {
-  const char *file = (char *) get_char_ptr ((char ***)&f->esp);
-  return remove (&file);
+  char *file = (char *) get_char_ptr ((char ***)(&f->esp));
+  return remove (file);
 }
 
 /*
@@ -198,8 +199,8 @@ remove (const char *file) {
 
 static int
 open_wrapper (struct intr_frame *f) {
-  const char *file = (char *) get_char_ptr ((char ***)&f->esp);
-  return opne(&file);
+  char *file = (char *) get_char_ptr ((char ***)(&f->esp));
+  return open(file);
 }
 
 /*
@@ -211,16 +212,16 @@ Opens a file
 static int 
 open (const char *file) {
   lock_acquire (&files_sync_lock);
-  struct file *opennedFile = filesys_open ((char* ) file);
-  if (opennedFile == NULL) {
+  struct file *openedFile = (struct file *) filesys_open ((char* ) file);
+  if (openedFile == NULL) {
     lock_release (&files_sync_lock);
     return -1; 
   }
   int fd = thread_current ()->fd_last++;
-  struct open_file *my_file = malloc (sizeof (struct open_file));
+  struct open_file *my_file = (struct open_file *) malloc (sizeof (struct open_file));
   my_file->fd = fd;
-  my_file->fp = opennedFile;
-  list_push_back(&(thread_current()->open_files), &my_file->elem); 
+  my_file->fp = openedFile;
+  list_push_back(&thread_current ()->open_files, &my_file->elem); 
   lock_release (&files_sync_lock);
   return fd;
 }

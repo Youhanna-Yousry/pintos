@@ -674,9 +674,9 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->child_processes);
   t->child_creataion_success = false;
   t->child_status = 0;
-  sema_init(&t->sema_child_wait, 0);
-  sema_init(&t->parent_child_sync, 0);
-  t->fd_last = 0;
+  sema_init (&t->sema_child_wait, 0);
+  sema_init (&t->parent_child_sync, 0);
+  t->fd_last = 2;
   t->parent_thread = NULL;
 
 
