@@ -7,6 +7,7 @@
 
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "../devices/shutdown.h"
 
 #define SYS_CALL false
 
@@ -35,12 +36,18 @@ struct file *get_file(int fd);
 int file_size_wrapper(struct intr_frame *);
 int read_wrapper(struct intr_frame *);
 int write_wrapper(struct intr_frame *);
-
+int wait_wrapper(struct intr_frame *);
+void exit_wrapper(struct intr_frame *);
+tid_t exec_wrapper(struct intr_frame *f);
+void halt_wrapper(void);
 
 int file_size (int fd);
 int read (int fd, void * buffer, unsigned size);
 int write (int fd, const void * buffer, unsigned size);
 
+int wait(tid_t tid);
+tid_t exec (const char *cmd_line);
+void halt (void);
 
 void
 syscall_init (void) 
@@ -73,10 +80,14 @@ get_void_ptr(void ***esp)
 
 void validate_void_ptr(const void *pt)
 {
-  if (PHYS_BASE <= pt || pt < 0x08048000 || pagedir_get_page(thread_current()->pagedir, pt) == NULL)
+  //printf("\t\tpt = %X, PHYS_BASE = %X\n", pt, PHYS_BASE);
+  // printf("\tentering %X\n", pt);
+  if (!is_user_vaddr(pt) || pagedir_get_page(thread_current()->pagedir, pt) == NULL)
   {
+    // printf("\t\tunvalid\n");
     exit(-1);
   }
+  // printf("\t\tvalid\n");
 }
 
 static void
@@ -87,27 +98,27 @@ syscall_handler(struct intr_frame *f)
 
   switch (get_int((int **)(&(f->esp))))
   {
-  // case SYS_HALT:
-  // {
-
-  //   break;
-  // }
+  case SYS_HALT:
+  {
+    halt_wrapper();
+    break;
+  }
   case SYS_EXIT:
   {
-    exit(get_int((int **)(&(f->esp))));
+    exit_wrapper(f);
     break;
   }
   case SYS_EXEC:
   {
-    f->eax = process_execute(get_char_ptr((char ***)(&(f->esp))));
-    break;
-  }
-  case SYS_WAIT:
-  {
-    f->eax = wait(get_int((int **)(&f->esp)));
+    f->eax = exec_wrapper(f);
     break;
   }
 
+  case SYS_WAIT:
+  {
+    f->eax = wait_wrapper(f);
+    break;
+  }
   case SYS_CREATE:
   {
     f->eax = create_wrapper (f);
@@ -137,20 +148,7 @@ syscall_handler(struct intr_frame *f)
 
   case SYS_WRITE:
   {
-    // int fd = get_int((int **)(&f->esp));
-    // if(SYS_CALL) printf("<2>fd: %d\n", fd);
-
-    // void *buffer = get_void_ptr((void ***)&f->esp);
-    // if(SYS_CALL) printf("<3>\n");
-
-    // unsigned size = (unsigned) get_int((int **) (&f->esp));
-    // if(SYS_CALL) printf("<4> size: %d\n", size);
-
-    // if(fd == STDOUT_FILENO) putbuf(buffer, size);
-
-    // if(SYS_CALL) printf("<5>\n");
     f->eax = write_wrapper(f);
-  // printf ("system call!\n");
     break;
   }
   //   case SYS_SEEK:
@@ -167,8 +165,9 @@ syscall_handler(struct intr_frame *f)
   //   break;
   // }
   // }
-  default:
-    printf("not implemented yet.\n");
+
+  // default:
+  //   printf("not implemented yet.\n");
 }  
 
 
@@ -248,9 +247,39 @@ open (const char *file) {
   return fd;
 }
 
-int wait(tid_t tid)
-{ // Exchange with process_wait() implementation?
+
+void halt_wrapper(void){
+  halt();
+}
+
+/*
+  Terminates Pintos by calling shutdown_power_off()
+*/
+void halt (void){
+  shutdown_power_off();
+}
+
+tid_t exec_wrapper(struct intr_frame *f){
+  const char *cmd_line = get_char_ptr((char ***)(&(f->esp)));
+  return exec(cmd_line);
+}
+
+tid_t exec (const char *cmd_line){
+  return process_execute(cmd_line);
+}
+
+int wait_wrapper(struct intr_frame *f){
+  int tid = get_int((int **)(&f->esp));
+  return wait(tid);
+}
+
+int wait(tid_t tid){  //Exchange with process_wait() implementation?
   return process_wait(tid);
+}
+
+void exit_wrapper(struct intr_frame *f){
+  int status = get_int((int **)(&f->esp));
+  exit(status);
 }
 
 /*
@@ -258,42 +287,11 @@ Terminates the current user program, returning status to the kernel. If the proc
 parent waits for it, this is the status that will be returned. Conventionally,
 a status of 0 indicates success and nonzero values indicate errors.
 */
-void exit(int status)
-{
-  struct thread *t = thread_current();
-  struct thread *parent = t->parent_thread;
-
+void exit(int status){
+  struct thread * t = thread_current();
+  struct thread * parent = t->parent_thread;
   if(DEBUG_WAIT) printf("\tinside syscall exit() by %s, tid = %d\n", t->name, t->tid);
-
-  printf("%s: exit(%d)\n" , t -> name , status);
-
-  for(struct list_elem *iter = list_begin (&t->child_processes);
-        iter != list_end (&t->child_processes);
-        iter = list_next (iter))
-        {
-          struct thread *child = list_entry(iter, struct thread, child_elem);
-          if (child->status == THREAD_BLOCKED){    //to be checked
-            child->parent_thread = NULL;
-            sema_up(&child->parent_child_sync);
-          }
-        }
-  
-  if(t->executable_file != NULL){
-    file_allow_write (t->executable_file);
-    // file_close(t->executable_file);
-    t->executable_file = NULL;
-  }
-  if(parent != NULL){
-    if(parent->child_waiting_on == t->tid){
-      if(DEBUG_WAIT) printf("\tinside exit, parent is waiting\n");
-      parent->child_status = status;
-      parent->child_waiting_on = -1;
-      sema_up(&parent->sema_child_wait);
-    }else{
-      if(DEBUG_WAIT) printf("\tinside exit, parent is not waiting.. child_waiting_on=%d\n", parent->child_waiting_on);
-      list_remove(&t->child_elem);
-    }
-  }
+  t->exit_code = status;
   thread_exit();
 }
 
