@@ -73,10 +73,12 @@ process_execute (const char *file_name)
     //       }
     //     }
 
-  if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
+
   return tid;
 }
 
@@ -120,6 +122,9 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   if (!success){
     // t->parent_thread->child_status = false;
+    if(t->parent_thread != NULL)
+      t->parent_thread->child_status = TID_ERROR;
+    t->exit_code = -1;
     sema_up(&(t->parent_thread->parent_child_sync));
     thread_exit ();
   } 
@@ -185,6 +190,8 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  printf("%s: exit(%d)\n" , cur -> name , cur->exit_code);
+
   if(cur->executable_file != NULL){
     if(DEBUG_MULT) printf("\tclosing exec file\n");
     file_close(cur->executable_file);
@@ -195,12 +202,29 @@ process_exit (void)
     struct list_elem * temp = list_pop_front(&cur->child_processes);
     struct thread * child = list_entry(temp, struct thread, child_elem);
     child->parent_thread = NULL;
+    if (child->status == THREAD_BLOCKED){
+            sema_up(&child->parent_child_sync);
+    }
     list_remove(temp);
   }
 
+  if(cur->executable_file != NULL){
+    // file_close(cur->executable_file);
+    cur->executable_file = NULL;
+  }
+
   if(cur->parent_thread != NULL){
+    if(cur->parent_thread->child_waiting_on == cur->tid){
+      if(DEBUG_WAIT) printf("\tinside exit, parent is waiting\n");
+      cur->parent_thread->child_status = cur->exit_code;
+      cur->parent_thread->child_waiting_on = -1;
+      sema_up(&cur->parent_thread->sema_child_wait);
+    }else{
+      if(DEBUG_WAIT) printf("\tinside exit, parent is not waiting.. child_waiting_on=%d\n", cur->parent_thread->child_waiting_on);
+      // list_remove(&cur->child_elem);
+    }
     // list_remove(&cur->child_elem);
-    sema_up(&cur->parent_thread->parent_child_sync);
+    // sema_up(&cur->parent_thread->parent_child_sync);
   }
   // if(cur->executable_file != NULL)
   //   file_allow_write(cur->executable_file);
