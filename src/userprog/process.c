@@ -227,7 +227,27 @@ process_exit (void)
     // sema_up(&cur->parent_thread->parent_child_sync);
   }
   // if(cur->executable_file != NULL)
+  // if(cur->executable_file != NULL){
+  //   if(DEBUG_MULT) printf("\tclosing exec file\n");
+  //   file_close(cur->executable_file);
+  // }
+
+  // /* Removing child list while updating parent of them to NULL */
+  // while(!list_empty(&cur->child_processes)){
+  //   struct list_elem * temp = list_pop_front(&cur->child_processes);
+  //   struct thread * child = list_entry(temp, struct thread, child_elem);
+  //   child->parent_thread = NULL;
+  //   list_remove(temp);
+  // }
+
+  // if(cur->parent_thread != NULL){
+  //   // list_remove(&cur->child_elem);
+  //   sema_up(&cur->parent_thread->parent_child_sync);
+  // }
+  // if(cur->executable_file != NULL){
   //   file_allow_write(cur->executable_file);
+  //   file_close (cur->executable_file);
+  // }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -463,14 +483,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-  file_deny_write(file);
-  t->executable_file = file;
+  // file_deny_write(file);
+  // t->executable_file = file;
  done:
   /* We arrive here whether the load is successful or not. */
-  // file_close (file);
-  // t->executable_file = file;
-  if(!success)
-    file_close(t->executable_file);
+  t->executable_file = file;
+  if(file != NULL)
+    file_deny_write(file);
+    // file_close (file);
   return success;
 }
 
