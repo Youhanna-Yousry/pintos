@@ -120,11 +120,40 @@ syscall_handler (struct intr_frame *f)
     f->eax = wait(get_int((int **)(&f->esp)));
     break;
   }
+  case SYS_SEEK:
+  {
+    f->eax = seek_wrapper (f);
+    break;
+  }
+  case SYS_TELL:
+  {
+    f->eax = tell_wrapper (f);
+    break;
+  }
+  case SYS_CLOSE:
+  {
+    f-> eax = close_wrapper (f);
+    break;
+  }
   default:
     printf("not implemented yet.\n");
 }  
 }
 
+static bool
+seek_wrapper( int fd, unsigned position) {
+  
+}
+
+static bool
+tell_wrapper(int fd) {
+
+}
+
+static bool
+close_wrapper(int fd) {
+
+}
 
 int wait(tid_t tid){  //Exchange with process_wait() implementation?
   return process_wait(tid);
