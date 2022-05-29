@@ -36,7 +36,7 @@ void seek( int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
 
-struct file *get_file(int fd);
+struct open_file *get_file(int fd);
 
 int file_size_wrapper(struct intr_frame *);
 int read_wrapper(struct intr_frame *);
@@ -183,10 +183,10 @@ seek_wrapper(struct intr_frame *f) {
 
 void
 seek( int fd, unsigned position) {
-  struct file *fp = get_file(fd);
+  struct open_file *fp = get_file(fd);
   off_t new_pos = (off_t) position;
   lock_acquire (&files_sync_lock);  
-    file_seek(fp, new_pos);
+    file_seek(fp->fp, new_pos);
   lock_release (&files_sync_lock);
 }
 
@@ -198,8 +198,11 @@ tell_wrapper(struct intr_frame *f) {
 
 unsigned
 tell(int fd) {
-  struct file *fp = get_file(fd);
-  return file_tell(fp);
+  struct open_file *fp = get_file(fd);
+  lock_acquire(&files_sync_lock);
+   unsigned rv = file_tell(fp->fp);
+  lock_release(&files_sync_lock);
+  return rv;
 }
 
 void
@@ -210,8 +213,12 @@ close_wrapper(struct intr_frame *f) {
 
 void
 close(int fd) {
-  struct file *fp = get_file(fd);
-  file_close(fp);
+  struct open_file *fp = get_file(fd);
+  list_remove(&fp->elem);
+  lock_acquire (&files_sync_lock);  
+    file_close(fp->fp);
+  lock_release (&files_sync_lock);
+
 }
 
 static bool
@@ -337,17 +344,16 @@ void exit(int status){
 }
 
 
-struct file *
+struct open_file *
 get_file(int fd)
 {
   struct thread *t = thread_current();
-  struct file *fp = NULL;
+  struct open_file *fp = NULL;
   for(struct list_elem *elem = list_begin(&t->open_files);
         elem != list_end(&t->open_files);  elem = list_next(elem))
         {
-          struct open_file *open_fp = list_entry(elem, struct open_file, elem);
-          if(open_fp->fd == fd){
-            fp = open_fp->fp;
+          fp = list_entry(elem, struct open_file, elem);
+          if(fp->fd == fd){
             break;
           }
         }
@@ -364,9 +370,9 @@ file_size_wrapper(struct intr_frame *f)
 int
 file_size (int fd)
 {
-  struct file *fp = get_file(fd);
+  struct open_file *fp = get_file(fd);
   lock_acquire(&files_sync_lock);
-    int size = file_length(fp);
+    int size = file_length(fp->fp);
   lock_release(&files_sync_lock);
   
   return size;
@@ -420,9 +426,9 @@ read (int fd, void *buffer, unsigned size)
     rv = i;
   }
   else {
-    struct file *fp = get_file(fd);
+    struct open_file *fp = get_file(fd);
     lock_acquire(&files_sync_lock);
-      rv = file_read(fp, buffer, size);
+      rv = file_read(fp->fp, buffer, size);
     lock_release(&files_sync_lock);
   }
   return rv;
@@ -469,9 +475,9 @@ write (int fd, const void *buffer, unsigned size)
     // fd == 0: negative area -> not possible
   }
   else {
-    struct file *fp = get_file(fd);
+    struct open_file *fp = get_file(fd);
     lock_acquire(&files_sync_lock);
-      rv = file_write(fp, buffer, size);
+      rv = file_write(fp->fp, buffer, size);
     lock_release(&files_sync_lock);
   }
   return rv;
