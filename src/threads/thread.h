@@ -9,6 +9,7 @@
 #define DEBUG_STACK false
 #define DEBBUG_LOAD false
 #define DEBUG_WAIT false
+#define DEBUG_MULT false
 
 
 
@@ -134,6 +135,7 @@ struct thread
    int fd_last;
    struct list_elem child_elem;           /*child element in parent children list*/
    tid_t child_waiting_on;                /* thread id of the child that thread waits on */
+   int exit_code;                         /*exit code used to determine exit status*/                       
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
