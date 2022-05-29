@@ -53,12 +53,25 @@ process_execute (const char *file_name)
 
 
   tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
-  if(DEBUG_WAIT) printf("<1>%s\n", thread_current()->name);
+  if(DEBUG_WAIT) printf("\tthread_create(%s) returned\n", thread_current()->name);
 
-  sema_down(&(thread_current()->parent_child_sync));
+  struct thread * cur = thread_current();
+  if(DEBUG_WAIT) printf("\tgoing to sleep parent (%s) for sync\n", cur->name);
+  sema_down(&(cur->parent_child_sync));
 
-  if(DEBUG_WAIT) printf("<4>\n");
+  if(DEBUG_WAIT) printf("\tparent (%s) woke up\n", cur->name);
 
+    // for(struct list_elem *iter = list_begin (&cur->child_processes);
+    //     iter != list_end (&cur->child_processes);
+    //     iter = list_next (iter))
+    //     {
+    //       struct thread *child = list_entry(iter, struct thread, child_elem);
+    //       if (child->tid == tid){
+    //         if(DEBUG_WAIT) printf("\tfound child (%s) .. seam_down..\n", child->name);
+    //         sema_down(&child->parent_child_sync);
+    //         break;
+    //       }
+    //     }
 
   if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
 
@@ -94,12 +107,13 @@ start_process (void *file_name_)
   if(success && t->parent_thread != NULL){
     list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
     // t->parent_thread->child_status = true;
-    if(DEBUG_WAIT) printf("<2>%s\n", thread_current()->parent_thread->name);
+    if(DEBUG_WAIT) printf("\twaking up parent(%s) by child(%s)\n", t->parent_thread->name, t->name);
     sema_up(&(t->parent_thread->parent_child_sync));
-    if(DEBUG_WAIT) printf("<3>\n");
-    thread_yield();
+    if(DEBUG_WAIT) printf("\tchild going (%s) going to sleep\n", t->name);
+    //thread_yield();
+    sema_down(&t->parent_child_sync);
     // sema_down(&(t->parent_thread->parent_child_sync));
-    if(DEBUG_WAIT) printf("<7>\n");
+    if(DEBUG_WAIT) printf("\tchild(%s) woke up\n", t->name);
 
   }
 
@@ -134,26 +148,33 @@ process_wait (tid_t child_tid UNUSED)
 {
 
   struct thread *t = thread_current();
-  if(DEBUG_WAIT) printf("<5>\n");
+  if(DEBUG_WAIT) printf("\tinside process_wait() by %s\n", t->name);
   
   /* checking if this child belongs to current thread */
   bool found = false;
   struct list_elem * child_elem = list_begin (&t->child_processes);
+  struct thread * child;
   for(; child_elem != list_end (&t->child_processes); child_elem = list_next (child_elem)) {
-    struct thread *temp = list_entry(child_elem, struct thread, child_elem);
-    if (child_tid == temp->tid){
+    child = list_entry(child_elem, struct thread, child_elem);
+    if (child_tid == child->tid){
+      if(DEBUG_WAIT) printf("\tparent (%s) found child (%s)\n", t->name, child->name);
       found = true;
       break;
     }
   }
   
   if(!found){
+    if(DEBUG_WAIT) printf("\tparent (%s) didn't found child (%d)\n", t->name, child_tid);
     return -1;
   }
-  if(DEBUG_WAIT) printf("<6>\n");
+  // if(DEBUG_WAIT) printf("<6>\n");
   t->child_waiting_on = child_tid;
   list_remove(child_elem);
+  if(DEBUG_WAIT) printf("\twaking up child (%s).. child_waiting_on=%d\n", child->name, t->child_waiting_on);
+  sema_up(&child->parent_child_sync);
+  if(DEBUG_WAIT) printf("\tparent (%s) going to sleep.. child_waiting_on=%d\n", t->name, t->child_waiting_on);
   sema_down(&t->sema_child_wait);
+  if(DEBUG_WAIT) printf("\tparent (%s) woke up.. child_waiting_on=%d\n", t->name, t->child_waiting_on);
   return t->child_status;
 }
 
@@ -163,6 +184,11 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  if(cur->executable_file != NULL){
+    if(DEBUG_MULT) printf("\tclosing exec file\n");
+    file_close(cur->executable_file);
+  }
 
   /* Removing child list while updating parent of them to NULL */
   while(!list_empty(&cur->child_processes)){
@@ -328,6 +354,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file = filesys_open (argv[argc - 1]);
   if (file == NULL) 
     {
+      if(DEBUG_MULT) printf("\tfile is null\n");
       printf ("load: %s: open failed\n", argv[argc - 1]);
       goto done; 
     }
@@ -412,12 +439,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  file_deny_write(file);
+  t->executable_file = file;
  done:
   /* We arrive here whether the load is successful or not. */
-  t->executable_file = file;
-  file_deny_write(file);
-  file_close (file);
+  // file_close (file);
+  // t->executable_file = file;
+  if(!success)
+    file_close(t->executable_file);
   return success;
 }
 
