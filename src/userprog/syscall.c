@@ -5,7 +5,7 @@
 #include "threads/interrupt.h"
 #include "../filesys/filesys.h"
 #include "../filesys/file.h"
-
+#include "../devices/shutdown.h"
 
 #define SYS_CALL false
 
@@ -26,12 +26,18 @@ struct file *get_file(int fd);
 int file_size_wrapper(struct intr_frame *);
 int read_wrapper(struct intr_frame *);
 int write_wrapper(struct intr_frame *);
-
+int wait_wrapper(struct intr_frame *);
+void exit_wrapper(struct intr_frame *);
+tid_t exec_wrapper(struct intr_frame *f);
+void halt_wrapper(void);
 
 int file_size (int fd);
 int read (int fd, void * buffer, unsigned size);
 int write (int fd, const void * buffer, unsigned size);
 
+int wait(tid_t tid);
+tid_t exec (const char *cmd_line);
+void halt (void);
 
 void
 syscall_init (void) 
@@ -66,10 +72,14 @@ get_void_ptr(void ***esp)
 void
 validate_void_ptr (const void *pt)
 {
-  if (PHYS_BASE <= pt || pt < 0x08048000 || pagedir_get_page(thread_current()->pagedir, pt) == NULL)
+  //printf("\t\tpt = %X, PHYS_BASE = %X\n", pt, PHYS_BASE);
+  // printf("\tentering %X\n", pt);
+  if (!is_user_vaddr(pt) || pagedir_get_page(thread_current()->pagedir, pt) == NULL)
   {
+    // printf("\t\tunvalid\n");
     exit(-1);
   }
+  // printf("\t\tvalid\n");
 }
 
 static void
@@ -107,27 +117,60 @@ syscall_handler (struct intr_frame *f)
   }
   case SYS_EXIT:
   {
-    exit(get_int((int **)(&(f->esp))));
+    exit_wrapper(f);
     break;
   }
   case SYS_EXEC:
   {
-    f->eax = process_execute(get_char_ptr((char ***)(&(f->esp))));
+    f->eax = exec_wrapper(f);
     break;
   }
   case SYS_WAIT:
   {
-    f->eax = wait(get_int((int **)(&f->esp)));
+    f->eax = wait_wrapper(f);
     break;
   }
+  case SYS_HALT:
+    halt_wrapper();
+    break;
   default:
     printf("not implemented yet.\n");
 }  
 }
 
 
+void halt_wrapper(void){
+  halt();
+}
+
+/*
+  Terminates Pintos by calling shutdown_power_off()
+*/
+void halt (void){
+  shutdown_power_off();
+}
+
+tid_t exec_wrapper(struct intr_frame *f){
+  const char *cmd_line = get_char_ptr((char ***)(&(f->esp)));
+  return exec(cmd_line);
+}
+
+tid_t exec (const char *cmd_line){
+  return process_execute(cmd_line);
+}
+
+int wait_wrapper(struct intr_frame *f){
+  int tid = get_int((int **)(&f->esp));
+  return wait(tid);
+}
+
 int wait(tid_t tid){  //Exchange with process_wait() implementation?
   return process_wait(tid);
+}
+
+void exit_wrapper(struct intr_frame *f){
+  int status = get_int((int **)(&f->esp));
+  exit(status);
 }
 
 /*
