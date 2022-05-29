@@ -218,7 +218,7 @@ close(int fd) {
   lock_acquire (&files_sync_lock);  
     file_close(fp->fp);
   lock_release (&files_sync_lock);
-
+  free(fp);
 }
 
 static bool

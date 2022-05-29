@@ -198,6 +198,12 @@ process_exit (void)
     file_close(cur->executable_file);
     cur->executable_file = NULL;
   }
+  while(!list_empty(&cur->open_files)){
+    struct list_elem *temp = list_pop_front(&cur->open_files);
+    struct open_file *fp = list_entry(temp, struct open_file, elem);
+    file_close(fp->fp);
+    free(fp);
+  }
 
   /* Removing child list while updating parent of them to NULL */
   while(!list_empty(&cur->child_processes)){
