@@ -139,16 +139,34 @@ void exit(int status){
   struct thread * t = thread_current();
   struct thread * parent = t->parent_thread;
 
+  if(DEBUG_WAIT) printf("\tinside syscall exit() by %s, tid = %d\n", t->name, t->tid);
+
   printf("%s: exit(%d)\n" , t -> name , status);
 
+  for(struct list_elem *iter = list_begin (&t->child_processes);
+        iter != list_end (&t->child_processes);
+        iter = list_next (iter))
+        {
+          struct thread *child = list_entry(iter, struct thread, child_elem);
+          if (child->status == THREAD_BLOCKED){    //to be checked
+            child->parent_thread = NULL;
+            sema_up(&child->parent_child_sync);
+          }
+        }
+  
+  if(t->executable_file != NULL){
+    file_allow_write (t->executable_file);
+    // file_close(t->executable_file);
+    t->executable_file = NULL;
+  }
   if(parent != NULL){
-
     if(parent->child_waiting_on == t->tid){
-    if(DEBUG_WAIT) printf("<8>\n");
+      if(DEBUG_WAIT) printf("\tinside exit, parent is waiting\n");
       parent->child_status = status;
       parent->child_waiting_on = -1;
       sema_up(&parent->sema_child_wait);
     }else{
+      if(DEBUG_WAIT) printf("\tinside exit, parent is not waiting.. child_waiting_on=%d\n", parent->child_waiting_on);
       list_remove(&t->child_elem);
     }
   }
