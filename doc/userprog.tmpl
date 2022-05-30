@@ -105,11 +105,29 @@ FirstName LastName <email@domain.example>
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+ -It's safer and faster (more efficient) this way; detection of page
+  fault is easier in kernel level since it spares us from expliciltiy
+  checking the validity of each address coming from user space.
+  Additionally, it's modular this way because it allows us to reuse
+  code fragements.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+  -Advantages:
+   1) Ease of implementation.
+   2) The kernel knows about the resources (files) opened by each thread.
+
+  -Disadvantages: 
+   1) One of the biggest downsides of using file descriptors
+   is that we need to iterate over all open files list in order to reach 
+   the file that we want to apply an operation on.
+   
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+  -We didn't change the tid_t to pid_t mapping. We think that it's
+   not worth it to modify it so we kept it that way.
 
                SURVEY QUESTIONS
                ================
