@@ -4,7 +4,7 @@
 #define USERPROG_SYSCALL_H
 
 void syscall_init (void);
-
-void exit(int status);
+tid_t exec (const char *cmd_line);
+void exit (int status);
 
 #endif /* userprog/syscall.h */

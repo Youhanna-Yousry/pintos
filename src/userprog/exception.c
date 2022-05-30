@@ -6,7 +6,6 @@
 #include "threads/thread.h"
 #include "syscall.h"
 
-#include "syscall.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
