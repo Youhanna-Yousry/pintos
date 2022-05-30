@@ -141,12 +141,12 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-   /*Used in userprog*/
-  struct child_process {
-     tid_t pid;
-     struct thread *t;
-     struct list_elem elem;
-  };
+//    /*Used in userprog*/
+//   struct child_process {
+//      tid_t pid;
+//      struct thread *t;
+//      struct list_elem elem;
+//   };
    /*opened files by the process*/
   struct open_file {
      int fd;

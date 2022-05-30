@@ -16,6 +16,7 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "../threads/thread.h"
 #include "../threads/vaddr.h"
 
@@ -58,6 +59,7 @@ process_execute (const char *file_name)
   struct thread * cur = thread_current();
   if(DEBUG_WAIT) printf("\tgoing to sleep parent (%s) for sync\n", cur->name);
   sema_down(&(cur->parent_child_sync));
+  // if(cur->child_creataion_success == false) tid = TID_ERROR;
 
   if(DEBUG_WAIT) printf("\tparent (%s) woke up\n", cur->name);
 
@@ -77,7 +79,7 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  if(thread_current()->child_status == TID_ERROR) tid = TID_ERROR;  
+  if(thread_current()->child_creataion_success == false) tid = TID_ERROR;  
 
   return tid;
 }
@@ -107,6 +109,7 @@ start_process (void *file_name_)
   struct thread *t = thread_current ();
 
   if(success && t->parent_thread != NULL){
+    t->parent_thread->child_creataion_success = true;
     list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
     // t->parent_thread->child_status = true;
     if(DEBUG_WAIT) printf("\twaking up parent(%s) by child(%s)\n", t->parent_thread->name, t->name);
@@ -194,7 +197,6 @@ process_exit (void)
 
   if(cur->executable_file != NULL){
     if(DEBUG_MULT) printf("\tclosing exec file\n");
-    file_allow_write(cur->executable_file);
     file_close(cur->executable_file);
     cur->executable_file = NULL;
   }
@@ -215,12 +217,6 @@ process_exit (void)
     }
     list_remove(temp);
   }
-
-  // if(cur->executable_file != NULL){
-  //   file_allow_write(cur->executable_file);
-  //   file_close(cur->executable_file);
-  //   cur->executable_file = NULL;
-  // }
 
   if(cur->parent_thread != NULL){
     if(cur->parent_thread->child_waiting_on == cur->tid){
@@ -480,8 +476,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* We arrive here whether the load is successful or not. */
   t->executable_file = file;
   if(file != NULL)
+  {
     file_deny_write(file);
     // file_close (file);
+  }
+
   return success;
 }
 
