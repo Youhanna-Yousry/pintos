@@ -409,15 +409,7 @@ read_wrapper (struct intr_frame *f)
     unsigned size = (unsigned) get_int((int **) (&f->esp));
     if(SYS_CALL) printf("<4> size: %d\n", size);
 
-    unsigned i = 0;
-    void *buffer_check = buffer;
-    while(i < size)
-    {
-      validate_void_ptr(buffer_check);
-      buffer_check++;
-      i++;
-    }
-
+    validate_void_ptr(buffer + size);
     return read(fd, buffer, size);
 }
 
@@ -465,14 +457,8 @@ write_wrapper (struct intr_frame *f)
     unsigned size = (unsigned) get_int((int **) (&f->esp));
     if(SYS_CALL) printf("<4> size: %d\n", size);
 
-    unsigned i = 0;
-    void *buffer_check = buffer;
-    while(i < size)
-    {
-      validate_void_ptr(buffer_check);
-      buffer_check++;
-      i++;
-    }
+
+    validate_void_ptr(buffer + size);
 
     return write(fd, buffer, size);
 }

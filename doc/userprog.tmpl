@@ -31,19 +31,41 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+--> NA
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+--> The command line is splitted using strtok_t() and then each argument
+    is trimmed. Then we stored the arument in reverse order in an array and
+    saved the number of the arguments.
+    To avoid overflowing the stack, we have put a limit of a 128 bytes
+    on the command line (i.e., anything thing above the limit will be truncated). 
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+--> strtok_r() is a reentrant function, that is it uses another argument
+    to save the function state (next character to start with), unlike strtok()
+    which saves this state internally.
+    This comes in handy in preemptive environemts such as Pintos, where 
+    one thread can be preempted to run another thead, thus a race condition
+    will occur on shared resources like the internal state of strtok() will lead to 
+    non determintistic results.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+--> 1- Seperateing command in kernel imposes an overhead, and the kernel code should be 
+       minimal to let other processes to use the cpu.
+    2- Unix approche leaves a space for the shell developpers to customize their product,
+       adding complex and user friendly features.
+
 
                  SYSTEM CALLS
                  ============
@@ -82,10 +104,23 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
 
+--> Each open file has a struct containg its file descriptor, file pointer
+    and list element. This struct is used to append the open files of a thread
+    in its open files list. To retrieve a file from its file descriptor, we search
+    the list for the file.
+    File descriptors are unique withing a single process.
+
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+--> The kernel pops the file descriptor, the buffer to be read/wirtten
+    and its size. Then the whole buffer is validated. 
+    After the validation, the file system function read/write is called
+    (input_getc() in case of console read, putbuf() in case of console write).
+    within a lock (acquire -> call function -> release). 
+    The number of read/written bytes is then returned.
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -93,6 +128,11 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
+
+--> Every copied byte from user space is checked to be withing the 
+    valid memory address range, and that it is allocated by the user.
+    As an improvement, probably we can check for the first and last byte
+    of the copied data.
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
