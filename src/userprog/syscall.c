@@ -3,10 +3,12 @@
 #include <syscall-nr.h>
 #include "process.h"
 #include "threads/interrupt.h"
-#include "../filesys/file.h"
-#include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "../filesys/file.h"
+#include "../filesys/filesys.h"
 #include "../devices/shutdown.h"
+#include "../devices/input.h"
+#include "pagedir.h"
 
 #define SYS_CALL false
 
@@ -38,6 +40,7 @@ static void close_wrapper(struct intr_frame *f);
 
 /*system calls*/
 static void halt(void);
+static tid_t exec (const char *cmd_line);
 static int wait(tid_t tid);
 static bool create(const char *file, unsigned initiall_size);
 static bool remove(const char *file);
