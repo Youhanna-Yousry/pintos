@@ -367,8 +367,8 @@ read_wrapper(struct intr_frame *f)
   if (SYS_CALL)
     printf("<4> size: %d\n", size);
 
-    validate_void_ptr(buffer + size);
-    return read(fd, buffer, size);
+  validate_void_ptr(buffer + size);
+  return read(fd, buffer, size);
 }
 
 /*Reads size bytes from the file open as fd into buffer. Returns the number of bytes
