@@ -8,9 +8,10 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Mohamed Magdy       19016479            <imohamedpro@icloud.com>
+Karim Alaa          19016172            <karimalaa1912@gmail.com>
+Youhanna Yousry     19016899            <youhanna.yousry.2580@gmail.com>
+Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
 
 ---- PRELIMINARIES ----
 
@@ -53,6 +54,30 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+    struct thread {
+        ...
+        /*User program fields*/
+        struct list open_files;                /* keeps track of opened file by the process */
+        struct list child_processes;           /* keeps track of all child processes */
+        struct thread *parent_thread;          /* points to the parent of the thread */
+        bool child_creataion_success;          /* status of child creation */
+        int child_status;                      /* status of child process that we wait on */
+        struct semaphore sema_child_wait;      /* used to wait for child process */
+        struct semaphore parent_child_sync;    /* synchonizes between parent and child */
+        struct file *executable_file;          /* executable of the process */
+        int fd_last;
+        struct list_elem child_elem;           /* child element in parent children list */
+        tid_t child_waiting_on;                /* thread id of the child that thread waits on */
+        int exit_code;                         /* exit code used to determine exit status */       
+        ...
+    }
+
+    struct open_file {
+        int fd;
+        struct file *fp;
+        struct list_elem elem;
+    }
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
@@ -72,6 +97,15 @@ FirstName LastName <email@domain.example>
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
 
+- When a parent process calls wait on a child process, first it checks
+  if the passed pid belongs to parent or not. If it belongs to parent,
+  it wakes up the child process (which is blocked by default) and the
+  parent is blocked. The child then starts its execution and when it
+  ends (calls exit system call) which calls thread_exit() and then calls
+  process_exit()  after it relases its resources, it checks if the parent 
+  was waiting for the child process. If so, it updates parent.child_status 
+  to the exit code and wakes up the parent thorugh sema_up() call.
+
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
 >> process to be terminated.  System calls are fraught with such
@@ -86,6 +120,14 @@ FirstName LastName <email@domain.example>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+- All pointer validation is handled through function validate_void_ptr()
+  which checks if address is >= PHYS_BASE or outside current process
+  page. If so it calls the system call exit(-1), which calls process_exit()
+  eventually, and all resources are relased inside it. 
+  (Ex: child_list, closing open files or relasing locks).
+- Also inside page_fault(), exit(-1) is called in case of any unpredicted
+  page faults.
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
@@ -93,12 +135,44 @@ FirstName LastName <email@domain.example>
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
+- Inside process_execute() function, the parent is slept by calling
+  sema_down(parent.parent_child_sync).
+- When function load() is done by child process, it updates 
+  parent.child_creataion_success to the sucess/failure status
+  through parent pointer saved in child.
+- When parent wakes up  it checks child_creataion_success value
+  if it was false then creation failed and returns -1, else if
+  it was true then creation successeded and returns new pid.
+
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
 >> that all resources are freed in each case?  How about when P
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
+
+- In each of previous cases, the child must call exit() sys call,
+  which eventually will call process_exit() releasing all resources.
+
+- If P called wait before C exits, C will be woken up using 
+  sema_up(C.parent_child_sync) P will be blocked using 
+  sema_down(P.sema_child_wait) and C will continue its 
+  execution until it exits, and then it will update
+  parent.child_status and wakes up the parent process,
+  retreving child's exit code from its field (child_status).
+
+- If P called wait after C exits, thus C exited by a loading error
+  and the parent will not find the child among child_list, returning -1.
+  In previous case C must be exited by a loading error because the
+  child only continue its execution (wakes up) only if the parent
+  called wait() on it or parent already exited, so it must be a
+  loading error.
+
+- If P terminates without waiting, it will wake up 
+  all childern, while updating parent pointer of all
+  of them to NULL, so the child process will not need 
+  to remove its list_elem from the parent list when it
+  exits since it already freed.
 
 ---- RATIONALE ----
 
