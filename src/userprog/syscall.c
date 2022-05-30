@@ -181,6 +181,10 @@ seek_wrapper(struct intr_frame *f) {
   seek(fd, position);
 }
 
+/*
+  Changes the next byte to be read or written in open file fd to position, expressed in
+  bytes from the beginning of the file. (Thus, a position of 0 is the file's start.)
+*/
 void
 seek( int fd, unsigned position) {
   struct open_file *fp = get_file(fd);
@@ -196,6 +200,10 @@ tell_wrapper(struct intr_frame *f) {
   return tell(fd);
 }
 
+/*
+  Returns the position of the next byte to be read or written in open file fd, expressed
+  in bytes from the beginning of the file.
+*/
 unsigned
 tell(int fd) {
   struct open_file *fp = get_file(fd);
@@ -211,6 +219,10 @@ close_wrapper(struct intr_frame *f) {
   close(fd);
 }
 
+/*
+  Closes file descriptor fd. Exiting or terminating a process implicitly closes 
+  all its open file descriptors, as if by calling this function for each one.
+*/
 void
 close(int fd) {
   struct open_file *fp = get_file(fd);
@@ -312,6 +324,10 @@ tid_t exec_wrapper(struct intr_frame *f){
   return exec(cmd_line);
 }
 
+/*
+  Runs the executable whose name is given in cmd line, passing any given arguments,
+  and returns the new process's program id (pid). In case of failure returns -1.
+*/
 tid_t exec (const char *cmd_line){
   return process_execute(cmd_line);
 }
@@ -321,7 +337,12 @@ int wait_wrapper(struct intr_frame *f){
   return wait(tid);
 }
 
-int wait(tid_t tid){  //Exchange with process_wait() implementation?
+/*
+  Waits for a child process pid and retrieves the child's exit status.
+  Calls process_wait() function, It returns -1 if the child was killed
+  by the kernal, or child doesn't belong to the parent.
+*/
+int wait(tid_t tid){  
   return process_wait(tid);
 }
 
@@ -336,10 +357,7 @@ parent waits for it, this is the status that will be returned. Conventionally,
 a status of 0 indicates success and nonzero values indicate errors.
 */
 void exit(int status){
-  struct thread * t = thread_current();
-  struct thread * parent = t->parent_thread;
-  if(DEBUG_WAIT) printf("\tinside syscall exit() by %s, tid = %d\n", t->name, t->tid);
-  t->exit_code = status;
+  thread_current()->exit_code = status;
   thread_exit();
 }
 

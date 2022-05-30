@@ -19,7 +19,7 @@
 #include "threads/malloc.h"
 #include "../threads/thread.h"
 #include "../threads/vaddr.h"
-
+#include "../threads/synch.h"
 
 
 
@@ -53,11 +53,10 @@ process_execute (const char *file_name)
   strlcpy(filename, file_name, strlen(file_name) + 1);
   char *name = strtok_r(filename, " ", &save_ptr);
 
-
-  tid = thread_create (name, PRI_DEFAULT, start_process, fn_copy);
+  struct thread * cur = thread_current();
+  tid = thread_create (name, cur->priority, start_process, fn_copy);
   if(DEBUG_WAIT) printf("\tthread_create(%s) returned\n", thread_current()->name);
 
-  struct thread * cur = thread_current();
 
   if(DEBUG_WAIT) printf("\tgoing to sleep parent (%s) for sync\n", cur->name);
   sema_down(&(cur->parent_child_sync));
@@ -190,17 +189,28 @@ process_exit (void)
 
   printf("%s: exit(%d)\n" , cur -> name , cur->exit_code);
 
+
+  /* RELEASING RESOURCES */
+  /* Closing executable file and allow writing*/
   if(cur->executable_file != NULL){
     if(DEBUG_MULT) printf("\tclosing exec file\n");
     file_close(cur->executable_file);
     cur->executable_file = NULL;
   }
-  /*close and free all opened files.*/
+
+  /* Close and free all opened files. */
   while(!list_empty(&cur->open_files)){
     struct list_elem *temp = list_pop_front(&cur->open_files);
     struct open_file *fp = list_entry(temp, struct open_file, elem);
     file_close(fp->fp);
     free(fp);
+  }
+
+  /* Releasing locks owned by process */
+  while(!list_empty(&cur->locks)){
+    struct list_elem *temp = list_pop_front(&cur->locks);
+    struct lock *l = list_entry(temp, struct lock, elem);
+    lock_release(l);
   }
 
   /* Removing child list while updating parent of them to NULL */
@@ -214,6 +224,7 @@ process_exit (void)
     list_remove(temp);
   }
 
+  /* Updating child status in parent if it is waiting for child */
   if(cur->parent_thread != NULL){
     if(cur->parent_thread->child_waiting_on == cur->tid){
       if(DEBUG_WAIT) printf("\tinside exit, parent is waiting\n");
