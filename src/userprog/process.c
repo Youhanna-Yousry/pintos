@@ -47,6 +47,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
 
 
+  /*Extract executable name for thread name.*/
   char *save_ptr;
   char filename[strlen(file_name) + 1];
   strlcpy(filename, file_name, strlen(file_name) + 1);
@@ -57,27 +58,16 @@ process_execute (const char *file_name)
   if(DEBUG_WAIT) printf("\tthread_create(%s) returned\n", thread_current()->name);
 
   struct thread * cur = thread_current();
+
   if(DEBUG_WAIT) printf("\tgoing to sleep parent (%s) for sync\n", cur->name);
   sema_down(&(cur->parent_child_sync));
-  // if(cur->child_creataion_success == false) tid = TID_ERROR;
+
 
   if(DEBUG_WAIT) printf("\tparent (%s) woke up\n", cur->name);
 
-    // for(struct list_elem *iter = list_begin (&cur->child_processes);
-    //     iter != list_end (&cur->child_processes);
-    //     iter = list_next (iter))
-    //     {
-    //       struct thread *child = list_entry(iter, struct thread, child_elem);
-    //       if (child->tid == tid){
-    //         if(DEBUG_WAIT) printf("\tfound child (%s) .. seam_down..\n", child->name);
-    //         sema_down(&child->parent_child_sync);
-    //         break;
-    //       }
-    //     }
-
 
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
 
   if(thread_current()->child_creataion_success == false) tid = TID_ERROR;  
 
@@ -109,24 +99,26 @@ start_process (void *file_name_)
   struct thread *t = thread_current ();
 
   if(success && t->parent_thread != NULL){
+
     t->parent_thread->child_creataion_success = true;
     list_push_back(&(t->parent_thread->child_processes), &(t->child_elem));
-    // t->parent_thread->child_status = true;
+
     if(DEBUG_WAIT) printf("\twaking up parent(%s) by child(%s)\n", t->parent_thread->name, t->name);
     sema_up(&(t->parent_thread->parent_child_sync));
+
     if(DEBUG_WAIT) printf("\tchild going (%s) going to sleep\n", t->name);
-    //thread_yield();
     sema_down(&t->parent_child_sync);
-    // sema_down(&(t->parent_thread->parent_child_sync));
+
     if(DEBUG_WAIT) printf("\tchild(%s) woke up\n", t->name);
 
   }
 
   /* If load failed, quit. */
   if (!success){
-    // t->parent_thread->child_status = false;
+
     if(t->parent_thread != NULL)
-      t->parent_thread->child_status = TID_ERROR;
+      // t->parent_thread->child_status = TID_ERROR;
+
     t->exit_code = -1;
     sema_up(&(t->parent_thread->parent_child_sync));
     thread_exit ();
@@ -175,14 +167,17 @@ process_wait (tid_t child_tid UNUSED)
     if(DEBUG_WAIT) printf("\tparent (%s) didn't found child (%d)\n", t->name, child_tid);
     return -1;
   }
-  // if(DEBUG_WAIT) printf("<6>\n");
+
   t->child_waiting_on = child_tid;
   list_remove(child_elem);
   if(DEBUG_WAIT) printf("\twaking up child (%s).. child_waiting_on=%d\n", child->name, t->child_waiting_on);
+
   sema_up(&child->parent_child_sync);
   if(DEBUG_WAIT) printf("\tparent (%s) going to sleep.. child_waiting_on=%d\n", t->name, t->child_waiting_on);
+
   sema_down(&t->sema_child_wait);
   if(DEBUG_WAIT) printf("\tparent (%s) woke up.. child_waiting_on=%d\n", t->name, t->child_waiting_on);
+
   return t->child_status;
 }
 
@@ -200,6 +195,7 @@ process_exit (void)
     file_close(cur->executable_file);
     cur->executable_file = NULL;
   }
+  /*close and free all opened files.*/
   while(!list_empty(&cur->open_files)){
     struct list_elem *temp = list_pop_front(&cur->open_files);
     struct open_file *fp = list_entry(temp, struct open_file, elem);
@@ -226,15 +222,8 @@ process_exit (void)
       sema_up(&cur->parent_thread->sema_child_wait);
     }else{
       if(DEBUG_WAIT) printf("\tinside exit, parent is not waiting.. child_waiting_on=%d\n", cur->parent_thread->child_waiting_on);
-      // list_remove(&cur->child_elem);
     }
-    // list_remove(&cur->child_elem);
-    // sema_up(&cur->parent_thread->parent_child_sync);
   }
-  // if(cur->executable_file != NULL)
-  //   file_allow_write(cur->executable_file);
-  //   file_close (cur->executable_file);
-  // }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -360,20 +349,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  /*Parsing*/
+  /*Parsing: spliting args*/
   char *token, *save_ptr;
   size_t size = strlen(file_name) + 1;
-  char filename[128]; /*????????????????????????????????????????*/
+  char filename[128]; 
   strlcpy(filename, file_name, size);
-  // while(isblank(filename[i]) && i < size)  i++;
-  // char *str = filename[i];
   int argc = 0;
   for(token = strtok_r(filename, " ", &save_ptr);
            token != NULL; token = strtok_r(NULL, " ", &save_ptr)){
              argc++;
            }
-  char *argv[128]; /*????????????????????????????????????????*/
+  
+  char *argv[128];
   char *ptr = filename;
+  /*populating argv and removing extra white spaces*/
   for(int i = 0; i < argc; i++){
     argv[argc - 1 - i] = ptr;
     while(*ptr != '\0')  ptr++;
@@ -470,15 +459,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-  // file_deny_write(file);
-  // t->executable_file = file;
  done:
   /* We arrive here whether the load is successful or not. */
+
+  /*denying writes on executable*/
   t->executable_file = file;
   if(file != NULL)
   {
     file_deny_write(file);
-    // file_close (file);
   }
 
   return success;
@@ -639,7 +627,7 @@ setup_stack (void **esp, int argc, char *argv[])
           memcpy(*esp, &ptr[i], sizeof(char *));
         }
 
-        /* argv addres*/
+        /* argv address*/
         char **argv_ptr = (char **)*esp;
         *esp -= sizeof(char **);
         memcpy(*esp, &argv_ptr, sizeof(char **));
