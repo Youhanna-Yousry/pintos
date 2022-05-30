@@ -224,6 +224,10 @@ exec_wrapper(struct intr_frame *f)
   return exec(cmd_line);
 }
 
+/*
+  Runs the executable whose name is given in cmd line, passing any given arguments,
+  and returns the new process's program id (pid). In case of failure returns -1.
+*/
 tid_t exec(const char *cmd_line)
 {
   return process_execute(cmd_line);
@@ -236,6 +240,11 @@ wait_wrapper(struct intr_frame *f)
   return wait(tid);
 }
 
+/*
+  Waits for a child process pid and retrieves the child's exit status.
+  Calls process_wait() function, It returns -1 if the child was killed
+  by the kernal, or child doesn't belong to the parent.
+*/
 static int
 wait(tid_t tid)
 {
@@ -452,6 +461,10 @@ seek_wrapper(struct intr_frame *f)
   seek(fd, position);
 }
 
+/*
+  Changes the next byte to be read or written in open file fd to position, expressed in
+  bytes from the beginning of the file. (Thus, a position of 0 is the file's start.)
+*/
 static void
 seek(int fd, unsigned position)
 {
@@ -469,6 +482,10 @@ tell_wrapper(struct intr_frame *f)
   return tell(fd);
 }
 
+/*
+  Returns the position of the next byte to be read or written in open file fd, expressed
+  in bytes from the beginning of the file.
+*/
 static unsigned
 tell(int fd)
 {
@@ -486,6 +503,10 @@ close_wrapper(struct intr_frame *f)
   close(fd);
 }
 
+/*
+  Closes file descriptor fd. Exiting or terminating a process implicitly closes 
+  all its open file descriptors, as if by calling this function for each one.
+*/
 static void
 close(int fd)
 {
