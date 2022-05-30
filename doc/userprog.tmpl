@@ -129,10 +129,9 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
---> Every copied byte from user space is checked to be withing the 
-    valid memory address range, and that it is allocated by the user.
-    As an improvement, probably we can check for the first and last byte
-    of the copied data.
+--> In our implementation only 2 bytes are checked to validate a buffer,
+    the first and the last bytes are checked to be within the valid range.
+    No further improvements can be done.
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
