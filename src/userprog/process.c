@@ -373,7 +373,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   char *argv[128];
   char *ptr = filename;
+  
   /*populating argv and removing extra white spaces*/
+  while(*ptr == '\0' || isblank(*ptr))  ptr++;
   for(int i = 0; i < argc; i++){
     argv[argc - 1 - i] = ptr;
     while(*ptr != '\0')  ptr++;
