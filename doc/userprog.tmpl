@@ -87,7 +87,7 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
         struct semaphore sema_child_wait;      /* used to wait for child process */
         struct semaphore parent_child_sync;    /* synchonizes between parent and child */
         struct file *executable_file;          /* executable of the process */
-        int fd_last;
+        int fd_last;                           /* file descriptor of the next file to be open*/
         struct list_elem child_elem;           /* child element in parent children list */
         tid_t child_waiting_on;                /* thread id of the child that thread waits on */
         int exit_code;                         /* exit code used to determine exit status */       
@@ -95,10 +95,12 @@ Youssef Magdi       19016937            <youssefmagdi1210@gmail.com>
     }
 
     struct open_file {
-        int fd;
-        struct file *fp;
-        struct list_elem elem;
+        int fd;                               /*file descriptor*/      
+        struct file *fp;                      /*file pointer*/
+        struct list_elem elem;                /**list element used in open files list in thread./
     }
+
+    static struct lock files_sync_lock;       /*lock for sync between files*/
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
